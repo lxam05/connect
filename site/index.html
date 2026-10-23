@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keysmith</title>
+    <meta
+      name="description"
+      content="Let your coding agent connect Stripe and Resend without ever seeing a secret."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="nav">
+      <div class="nav-inner">
+        <a class="brand" href="#/" aria-label="Keysmith home">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="8" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <path
+              d="M12.5 12H21M17.5 12v3.5M20.5 12v2.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span>Keysmith</span>
+        </a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="#/docs/introduction" data-nav="docs">Docs</a>
+          <a href="#/integrations" data-nav="integrations">Integrations</a>
+          <a href="#/security" data-nav="security">Security</a>
+          <a href="#/roadmap" data-nav="roadmap">Roadmap</a>
+        </nav>
+        <div class="nav-actions">
+          <button class="kbd-search" type="button" data-open-palette aria-label="Search docs">
+            <span>Search</span><kbd>⌘K</kbd>
+          </button>
+          <a class="btn btn-light btn-sm" href="#/docs/quickstart">Get started</a>
+          <button class="menu-btn" type="button" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1"></main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <a class="brand" href="#/">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <circle cx="8" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+              <path
+                d="M12.5 12H21M17.5 12v3.5M20.5 12v2.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span>Keysmith</span>
+          </a>
+          <p>Keys for your agent, without handing them over.</p>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <h4>Product</h4>
+            <a href="#/integrations">Integrations</a>
+            <a href="#/security">Security</a>
+            <a href="#/roadmap">Roadmap</a>
+          </div>
+          <div>
+            <h4>Docs</h4>
+            <a href="#/docs/quickstart">Quickstart</a>
+            <a href="#/docs/cli">CLI reference</a>
+            <a href="#/docs/mcp">MCP tools</a>
+          </div>
+          <div>
+            <h4>Source</h4>
+            <a href="https://github.com/lxam05/connect" rel="noopener">GitHub</a>
+            <a href="#/docs/adding-a-provider">Add a provider</a>
+            <a href="#/security">Threat model</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-base">
+        <span>MIT licensed. macOS only. v0.1.0</span>
+      </div>
+    </footer>
+
+    <div class="palette" role="dialog" aria-modal="true" aria-label="Search" hidden>
+      <div class="palette-box">
+        <input
+          type="text"
+          placeholder="Search docs and pages"
+          aria-label="Search"
+          autocomplete="off"
+        />
+        <ul role="listbox"></ul>
+        <div class="palette-foot">
+          <kbd>↑</kbd><kbd>↓</kbd> to move <kbd>↵</kbd> to open <kbd>esc</kbd> to close
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
