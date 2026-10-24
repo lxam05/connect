@@ -16,4 +16,21 @@ export default tseslint.config(
     files: ["src/log.ts", "test/**", "*.config.*"],
     rules: { "no-console": "off" },
   },
+  {
+    // Static marketing/docs site, runs in the browser.
+    files: ["site/**/*.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        location: "readonly",
+        navigator: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+      },
+    },
+  },
 );

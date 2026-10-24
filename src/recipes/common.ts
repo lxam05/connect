@@ -1,7 +1,7 @@
 import { Redactor } from "../redact.js";
 import { envPath, readEnvFile, writeProjectEnv } from "../env/index.js";
-import type { NewSecretMeta, SecretMeta } from "../vault/index.js";
-import type { ConnectResult, Recipe, RecipeContext, Status } from "./types.js";
+import type { Mode, NewSecretMeta, SecretMeta } from "../vault/index.js";
+import type { ConnectResult, EnvVarSpec, Recipe, RecipeContext, Status } from "./types.js";
 
 export const EXPIRY_WARNING_DAYS = 14;
 
@@ -9,16 +9,33 @@ export function refFor(ctx: RecipeContext, recipe: Recipe, envVar: string): stri
   return ctx.vault.ref(ctx.project.name, recipe.id, envVar);
 }
 
+/** The env vars a recipe manages in this project. */
+export function envSpecs(recipe: Recipe, ctx: RecipeContext): EnvVarSpec[] {
+  return recipe.envVarsFor?.(ctx) ?? recipe.envVars;
+}
+
+/** Live or test, from a key's prefix. Unknown shapes count as test. */
+export function inferMode(value: string): Mode {
+  return /(^|_)live_/.test(value) ? "live" : "test";
+}
+
+/** "test mode", or the recipe's own label (e.g. "sending access"). */
+export function describeMode(recipe: Pick<Recipe, "modeLabel">, mode?: Mode): string {
+  return recipe.modeLabel ?? `${mode ?? "test"} mode`;
+}
+
 /** Look at the vault and .env and report whether a recipe is fully set up. No network. */
 export function detectFromState(ctx: RecipeContext, recipe: Recipe): Status {
   const env = readEnvFile(envPath(ctx.project.root));
   const missing: string[] = [];
   let primary: SecretMeta | undefined;
-  for (const spec of recipe.envVars) {
+  const specs = envSpecs(recipe, ctx);
+  for (const spec of specs) {
     if (spec.secret) {
       const ref = refFor(ctx, recipe, spec.name);
       if (!ctx.vault.has(ref)) {
-        missing.push(spec.name);
+        // Vault-only keys (e.g. an admin key for rotation) are optional for a working app.
+        if (!spec.vaultOnly) missing.push(spec.name);
         continue;
       }
       primary ??= spec.vaultOnly ? undefined : ctx.vault.meta(ref);
@@ -28,9 +45,7 @@ export function detectFromState(ctx: RecipeContext, recipe: Recipe): Status {
     }
   }
   const base = { service: recipe.id, displayName: recipe.displayName };
-  const anyStored = recipe.envVars.some(
-    (s) => s.secret && ctx.vault.has(refFor(ctx, recipe, s.name)),
-  );
+  const anyStored = specs.some((s) => s.secret && ctx.vault.has(refFor(ctx, recipe, s.name)));
   if (!anyStored) return { ...base, state: "not_connected", missing };
 
   const expires = primary?.expires ?? null;
@@ -42,6 +57,8 @@ export function detectFromState(ctx: RecipeContext, recipe: Recipe): Status {
     mode: primary?.mode,
     tier: primary?.tier,
     account: primary?.account,
+    accountName: primary?.accountName,
+    modeLabel: recipe.modeLabel,
     expires,
     missing: missing.length ? missing : undefined,
   };
@@ -65,7 +82,7 @@ export interface PersistItem {
 export function persist(ctx: RecipeContext, recipe: Recipe, items: PersistItem[]): string[] {
   const envEntries: { key: string; value: string; secret: boolean }[] = [];
   for (const item of items) {
-    const spec = recipe.envVars.find((s) => s.name === item.envVar);
+    const spec = envSpecs(recipe, ctx).find((s) => s.name === item.envVar);
     if (!spec) throw new Error(`${recipe.id}: unknown env var ${item.envVar}`);
     if (spec.secret) {
       if (!item.meta) throw new Error(`${recipe.id}: missing metadata for ${item.envVar}`);
@@ -91,7 +108,7 @@ export function repairEnv(
 ): ConnectResult | null {
   if (status.state !== "incomplete" || !status.missing) return null;
   const fixable = status.missing.every((name) => {
-    const spec = recipe.envVars.find((s) => s.name === name);
+    const spec = envSpecs(recipe, ctx).find((s) => s.name === name);
     return spec?.secret && ctx.vault.has(refFor(ctx, recipe, name));
   });
   if (!fixable) return null;
@@ -110,9 +127,46 @@ export function repairEnv(
   };
 }
 
-export function alreadyConnected(recipe: Recipe, status: Status): ConnectResult {
-  const parts = [`${recipe.displayName} is already connected (${status.mode ?? "test"} mode).`];
-  if (status.account) parts.push(`Account ${status.account}.`);
+/**
+ * Ask the user to pick a provider project or account. The wording depends on who reads it:
+ * the CLI user runs a command, an agent asks the user and calls connect again.
+ */
+export function chooseProject(
+  ctx: RecipeContext,
+  recipe: Recipe,
+  kind: string,
+  choices: { id: string; name: string; note?: string }[],
+): ConnectResult {
+  const list = choices
+    .map((c) => `${accountLabel(c.id, c.name)}${c.note ? ` [${c.note}]` : ""}`)
+    .join(", ");
+  const message = ctx.options.wait
+    ? `Several ${recipe.displayName} ${kind}s are available: ${list}. Pick one with \`keysmith connect ${recipe.id} --project <id>\` (or \`keysmith setup --project <id>\`).`
+    : `Several ${recipe.displayName} ${kind}s are available. Ask the user which one, then call connect("${recipe.id}") again with project set to its id. Choices: ${list}.`;
+  return {
+    service: recipe.id,
+    outcome: "action_required",
+    message,
+    humanSteps: [
+      `Choose a ${recipe.displayName} ${kind}: ${choices.map((c) => c.name).join(", ")}`,
+    ],
+  };
+}
+
+/** `"Gap Detector sandbox" (acct_123)`, or just the id when there's no name. */
+export function accountLabel(id: string, name?: string): string {
+  return name ? `"${name}" (${id})` : id;
+}
+
+export function alreadyConnected(
+  recipe: Recipe,
+  status: Status,
+  specs: EnvVarSpec[] = recipe.envVars,
+): ConnectResult {
+  const parts = [
+    `${recipe.displayName} is already connected (${describeMode(recipe, status.mode)}).`,
+  ];
+  if (status.account) parts.push(`Account ${accountLabel(status.account, status.accountName)}.`);
   if (status.expiringSoon && status.expires)
     parts.push(`Key expires ${status.expires.slice(0, 10)}.`);
   return {
@@ -121,8 +175,9 @@ export function alreadyConnected(recipe: Recipe, status: Status): ConnectResult 
     message: parts.join(" "),
     mode: status.mode,
     account: status.account,
+    accountName: status.accountName,
     expires: status.expires,
-    envVars: recipe.envVars.filter((s) => !s.vaultOnly).map((s) => s.name),
+    envVars: specs.filter((s) => !s.vaultOnly).map((s) => s.name),
   };
 }
 

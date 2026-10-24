@@ -5,6 +5,7 @@ import { Redactor } from "../redact.js";
 import type { BackgroundProcess } from "../sys.js";
 import type { Tier } from "../vault/index.js";
 import {
+  accountLabel,
   alreadyConnected,
   describeHttpError,
   detectFromState,
@@ -94,7 +95,7 @@ function profileName(ctx: RecipeContext): string {
   return ctx.sys.env.KEYSMITH_STRIPE_PROFILE ?? "default";
 }
 
-function profileArgs(ctx: RecipeContext): string[] {
+export function profileArgs(ctx: RecipeContext): string[] {
   const p = profileName(ctx);
   return p === "default" ? [] : ["--project-name", p];
 }
@@ -109,10 +110,27 @@ async function stripeGet(ctx: RecipeContext, key: string, path: string): Promise
   });
 }
 
+export interface Account {
+  id: string;
+  name?: string;
+}
+
+interface AccountBody {
+  id?: string;
+  settings?: { dashboard?: { display_name?: string | null } };
+  business_profile?: { name?: string | null };
+}
+
+function parseAccount(body: AccountBody): Account | undefined {
+  if (!body.id?.startsWith("acct_")) return undefined;
+  const name = body.settings?.dashboard?.display_name ?? body.business_profile?.name ?? undefined;
+  return { id: body.id, name: name || undefined };
+}
+
 interface KeyCheck {
   ok: boolean;
   message: string;
-  account?: string;
+  account?: Account;
   canCheckout?: boolean;
 }
 
@@ -122,9 +140,41 @@ async function checkKey(ctx: RecipeContext, key: string): Promise<KeyCheck> {
     return { ok: false, message: `Stripe rejected the key (${await describeHttpError(balance)}).` };
   const body = (await balance.json()) as { livemode?: boolean };
   if (body.livemode !== false) return { ok: false, message: "That key is not a test-mode key." };
-  const account = balance.headers.get("stripe-account") ?? undefined;
+  // Restricted keys may not be allowed to read the account; that's fine, the id is just unknown.
+  const acct = await stripeGet(ctx, key, "/v1/account");
+  const account = acct.ok ? parseAccount((await acct.json()) as AccountBody) : undefined;
   const checkout = await stripeGet(ctx, key, "/v1/checkout/sessions?limit=1");
   return { ok: true, message: "ok", account, canCheckout: checkout.ok };
+}
+
+/** The account the Stripe CLI is currently using (what `stripe listen` forwards from). */
+export async function cliAccount(ctx: RecipeContext): Promise<Account | undefined> {
+  if (!(await ctx.sys.which("stripe"))) return undefined;
+  const r = await ctx.sys.exec("stripe", ["get", "/v1/account", ...profileArgs(ctx)], {
+    timeoutMs: 20_000,
+  });
+  if (r.code !== 0) return undefined;
+  try {
+    return parseAccount(JSON.parse(r.stdout.slice(r.stdout.indexOf("{"))) as AccountBody);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Warns when webhooks from `stripe listen` would come from a different account than the key. */
+async function cliMismatchWarning(
+  ctx: RecipeContext,
+  account: Account | undefined,
+): Promise<string | undefined> {
+  if (!account) return undefined;
+  const cli = await cliAccount(ctx);
+  if (!cli || cli.id === account.id) return undefined;
+  return (
+    `The Stripe CLI is using ${accountLabel(cli.id, cli.name)}, but Keysmith's key belongs to ` +
+    `${accountLabel(account.id, account.name)}. Events from \`stripe listen\` won't reach this app. ` +
+    `Run \`stripe switch ${account.id}\` (after \`stripe login\` if needed), or reconnect with ` +
+    `\`keysmith connect stripe --tier capture --force\` using a key from the CLI's account.`
+  );
 }
 
 /** One in-flight `stripe login` per profile, kept alive across MCP calls. */
@@ -291,6 +341,7 @@ async function captureKeys(
 export const stripe: Recipe = {
   id: "stripe",
   displayName: "Stripe",
+  support: "dedicated",
   envVars: [
     { name: SECRET, secret: true, description: "Test-mode secret (or restricted) key" },
     { name: PUBLISHABLE, secret: false, description: "Test-mode publishable key (public)" },
@@ -307,6 +358,9 @@ export const stripe: Recipe = {
     `If the Stripe CLI isn't installed, the user must approve installing it: ${INSTALL_CMD}`,
   ],
   blockedPaths: [/^\/v\d+\/(api_keys|iam)\b/],
+  signals: { packages: ["stripe", "@stripe/stripe-js", "@stripe/react-stripe-js"] },
+  rotation:
+    "Only for keys from the Stripe CLI: picks up the newer key after `stripe login`. A key pasted from the dashboard must be rolled there, then reconnected with `keysmith connect stripe --tier capture --force`.",
 
   async detect(ctx) {
     return detectFromState(ctx, this);
@@ -314,7 +368,7 @@ export const stripe: Recipe = {
 
   async connect(ctx) {
     const status = await this.detect(ctx);
-    if (status.state === "connected") return alreadyConnected(this, status);
+    if (status.state === "connected" && !ctx.options.force) return alreadyConnected(this, status);
     const repaired = repairEnv(ctx, this, status);
     if (repaired) return repaired;
 
@@ -372,12 +426,18 @@ export const stripe: Recipe = {
       ]);
     }
 
-    const account = keys.account ?? check.account;
+    const account = check.account ?? (keys.account ? { id: keys.account } : undefined);
     const envVars = persist(ctx, this, [
       {
         envVar: SECRET,
         value: keys.secret!,
-        meta: { mode: "test", tier, expires: keys.expires, account },
+        meta: {
+          mode: "test",
+          tier,
+          expires: keys.expires,
+          account: account?.id,
+          accountName: account?.name,
+        },
       },
       { envVar: PUBLISHABLE, value: keys.publishable },
       { envVar: NEXT_PUBLISHABLE, value: keys.publishable },
@@ -385,13 +445,19 @@ export const stripe: Recipe = {
     const expiry = keys.expires
       ? ` Key expires ${keys.expires.slice(0, 10)} (Stripe CLI keys last 90 days).`
       : "";
+    const mismatch = await cliMismatchWarning(ctx, account);
+    if (mismatch) warnings.push(mismatch);
+    const where = account
+      ? `, account ${accountLabel(account.id, account.name)}`
+      : ". Keysmith couldn't read the account name for this key";
     return {
       service: this.id,
       outcome: "connected",
-      message: `Stripe connected ✓ Test mode${account ? `, account ${account}` : ""}.${expiry}`,
+      message: `Stripe connected in test mode${where}.${expiry}`,
       tier,
       envVars,
-      account,
+      account: account?.id,
+      accountName: account?.name,
       mode: "test",
       expires: keys.expires,
       warnings: warnings.length ? warnings : undefined,
@@ -404,14 +470,22 @@ export const stripe: Recipe = {
     if (!key) return { service: this.id, ok: false, message: "Not connected. Call connect first." };
     const check = await checkKey(ctx, key);
     if (!check.ok) return { service: this.id, ok: false, message: check.message };
-    const account = ctx.vault.meta(ref)?.account ?? check.account;
+    const meta = ctx.vault.meta(ref);
+    const account =
+      check.account ?? (meta?.account ? { id: meta.account, name: meta.accountName } : undefined);
+    // Backfill connections made before the account was recorded, so `status` can show it.
+    if (account && (meta?.account !== account.id || meta?.accountName !== account.name))
+      ctx.vault.updateMeta(ref, { account: account.id, accountName: account.name });
     const notes = check.canCheckout ? "" : " Note: this key can't create Checkout Sessions.";
+    const mismatch = await cliMismatchWarning(ctx, account);
     return {
       service: this.id,
       ok: true,
-      message: `STRIPE_SECRET_KEY works (test mode${account ? `, account ${account}` : ""}).${notes}`,
-      account,
+      message: `STRIPE_SECRET_KEY works (test mode${account ? `, account ${accountLabel(account.id, account.name)}` : ""}).${notes}`,
+      account: account?.id,
+      accountName: account?.name,
       mode: "test",
+      warnings: mismatch ? [mismatch] : undefined,
     };
   },
 
@@ -446,11 +520,12 @@ export const stripe: Recipe = {
       tier: "cli",
       expires: keys.expires,
       account: meta.account,
+      accountName: meta.accountName,
     });
     return {
       service: this.id,
       outcome: "connected",
-      message: "Stripe key rotated ✓ Restart running processes to pick it up.",
+      message: "Stripe key rotated. Restart running processes to pick it up.",
       tier: "cli",
       envVars: [SECRET],
       expires: keys.expires,

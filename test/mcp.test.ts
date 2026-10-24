@@ -19,8 +19,25 @@ describe("MCP server", () => {
   it("exposes exactly the metadata-only tools, with instructions", async () => {
     const { client } = await connectClient();
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(tools).toEqual(["connect", "list_services", "request", "rotate", "status", "verify"]);
+    expect(tools).toEqual([
+      "add_secret",
+      "connect",
+      "list_services",
+      "request",
+      "rotate",
+      "scan",
+      "setup",
+      "status",
+      "verify",
+    ]);
     expect(client.getInstructions()).toMatch(/Never try to read secret values/);
+  });
+
+  it("setup returns grouped human steps and no values", async () => {
+    const { client } = await connectClient();
+    const r = text(await client.callTool({ name: "setup", arguments: {} }));
+    expect(r).toMatchObject({ done: true, services: [] });
+    expect(r.summary).toMatch(/doesn't seem to need/);
   });
 
   it("status never includes values", async () => {

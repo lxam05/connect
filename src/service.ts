@@ -1,3 +1,4 @@
+import { custom } from "./recipes/custom.js";
 import { recipes, getRecipe } from "./recipes/registry.js";
 import type { ConnectResult, RecipeContext, Status, VerifyResult } from "./recipes/types.js";
 
@@ -7,12 +8,15 @@ export function listServices() {
   return recipes.map((r) => ({
     id: r.id,
     displayName: r.displayName,
+    support: r.support,
     envVars: r.envVars
       .filter((v) => !v.vaultOnly)
       .map((v) => ({ name: v.name, secret: v.secret, description: v.description })),
     tiers: r.tiers,
     humanSteps: r.humanSteps,
     canRotate: Boolean(r.rotate),
+    rotation: r.rotation,
+    modeLabel: r.modeLabel,
   }));
 }
 
@@ -41,3 +45,16 @@ export async function rotate(ctx: RecipeContext, service: string): Promise<Conne
     };
   return recipe.rotate(ctx);
 }
+
+/** Store secrets for services Keysmith has no recipe for, via the hidden dialog. */
+export async function addSecret(
+  ctx: RecipeContext,
+  names: string[],
+  opts: { url?: string; force?: boolean } = {},
+): Promise<ConnectResult> {
+  ctx.options = { ...ctx.options, vars: names, url: opts.url, force: opts.force };
+  return custom.connect(ctx);
+}
+
+export { scanProject as scan } from "./scan.js";
+export { setupProject as setup } from "./setup.js";

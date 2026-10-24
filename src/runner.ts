@@ -67,6 +67,11 @@ export function runWithSecrets(opts: RunOptions): Promise<number> {
   const { env: resolved, secretKeys, redactor } = resolveProjectEnv(opts.project, opts.vault);
   const stdout = opts.stdout ?? process.stdout;
   const stderr = opts.stderr ?? process.stderr;
+  if (secretKeys.size === 0) {
+    stderr.write(
+      `keysmith: no keysmith:// placeholders in ${join(opts.project.root, ".env")}, running without injected secrets.\n`,
+    );
+  }
 
   // Values already set in the shell win for plain vars (dotenv semantics);
   // resolved placeholders always win, since the shell can only hold the placeholder.

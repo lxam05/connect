@@ -71,6 +71,15 @@ export class Vault {
     return this.readIndex().secrets[ref];
   }
 
+  /** Update metadata for an existing secret without touching its value. */
+  updateMeta(ref: string, patch: Partial<Pick<SecretMeta, "account" | "accountName">>): void {
+    const index = this.readIndex();
+    const current = index.secrets[ref];
+    if (!current) return;
+    index.secrets[ref] = { ...current, ...patch };
+    this.writeIndex(index);
+  }
+
   delete(ref: string): boolean {
     const index = this.readIndex();
     const existed = Boolean(index.secrets[ref]);

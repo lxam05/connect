@@ -77,5 +77,15 @@ export function upsertEnvFile(path: string, entries: EnvEntry[], header?: string
   return changed;
 }
 
+/** Delete KEY=… lines for `keys`, leaving everything else untouched. */
+export function removeEnvKeys(path: string, keys: string[]): boolean {
+  if (!existsSync(path) || !keys.length) return false;
+  const lines = readFileSync(path, "utf8").split(/\r?\n/);
+  const kept = lines.filter((l) => !keys.includes(LINE.exec(l)?.[1] ?? ""));
+  if (kept.length === lines.length) return false;
+  writeFileSync(path, kept.join("\n"), { mode: 0o600 });
+  return true;
+}
+
 export const envPath = (root: string) => join(root, ".env");
 export const envExamplePath = (root: string) => join(root, ".env.example");

@@ -1,7 +1,7 @@
 export type Mode = "test" | "live";
 
 /** Which connection path produced a secret. */
-export type Tier = "provisioning-api" | "cli" | "oauth" | "capture" | "derived";
+export type Tier = "provisioning-api" | "cli" | "oauth" | "capture" | "derived" | "imported";
 
 export interface SecretMeta {
   ref: string;
@@ -18,6 +18,8 @@ export interface SecretMeta {
   providerKeyId?: string;
   /** Provider account identifier (not secret). */
   account?: string;
+  /** Human-readable account name, e.g. the Stripe dashboard display name (not secret). */
+  accountName?: string;
 }
 
 export type NewSecretMeta = Omit<

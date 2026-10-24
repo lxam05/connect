@@ -164,6 +164,7 @@ async function domainSummary(ctx: RecipeContext, adminKey: string): Promise<stri
 export const resend: Recipe = {
   id: "resend",
   displayName: "Resend",
+  support: "dedicated",
   envVars: [
     { name: SENDING, secret: true, description: "Sending-access API key used by the app" },
     {
@@ -180,6 +181,10 @@ export const resend: Recipe = {
   ],
   // Endpoints that mint or return key material are never proxied.
   blockedPaths: [/^\/api-keys/],
+  signals: { packages: ["resend"], envPrefixes: ["RESEND_"] },
+  modeLabel: "sending access",
+  rotation:
+    "Creates a new sending-only key with the stored full-access key, verifies it, swaps it in, then deletes the old one. Running apps must restart.",
 
   async detect(ctx) {
     return detectFromState(ctx, this);
@@ -212,7 +217,7 @@ export const resend: Recipe = {
       service: this.id,
       outcome: "connected",
       message:
-        `Resend connected ✓ Sending-only key stored as RESEND_API_KEY; the full-access key stays in the Keychain for rotation. ${domains}`.trim(),
+        `Resend connected. Sending-only key stored as RESEND_API_KEY; the full-access key stays in the Keychain for rotation. ${domains}`.trim(),
       tier: admin.tier,
       envVars,
       mode: "test",
@@ -283,7 +288,7 @@ export const resend: Recipe = {
     return {
       service: this.id,
       outcome: "connected",
-      message: "Resend key rotated ✓ New sending key verified and stored; old key revoked.",
+      message: "Resend key rotated. New sending key verified and stored; old key revoked.",
       tier: "derived",
       envVars: [SENDING],
       mode: oldMeta.mode,

@@ -1,0 +1,11 @@
+{
+  "description": "Block tool calls that would read secrets from the Keychain or provider CLI config.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|Grep|Glob",
+        "hooks": [{ "type": "command", "command": "keysmith guard", "timeout": 10 }]
+      }
+    ]
+  }
+}

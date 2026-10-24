@@ -16,6 +16,14 @@ export interface ConnectOptions {
   tier?: "auto" | "cli" | "capture";
   /** CLI usage: block and wait for browser approvals instead of returning action_required. */
   wait?: boolean;
+  /** Replace an existing connection (Stripe recipes only), e.g. to switch accounts. */
+  force?: boolean;
+  /** Provider project or account to use when there are several (Supabase, Neon, Cloudflare). */
+  project?: string;
+  /** Env var names to store (custom secrets). */
+  vars?: string[];
+  /** Page to open before asking for a custom secret. */
+  url?: string;
 }
 
 export interface RecipeContext {
@@ -30,6 +38,12 @@ export interface RecipeContext {
   progress: (msg: string) => void;
 }
 
+/**
+ * How far Keysmith supports a service: obtains the key itself, verifies a pasted key,
+ * stores a pasted key it can't verify, or stores any other secret.
+ */
+export type Support = "dedicated" | "verified-paste" | "catalog-only" | "custom";
+
 export type ConnState = "connected" | "not_connected" | "incomplete" | "expired";
 
 export interface Status {
@@ -39,6 +53,9 @@ export interface Status {
   mode?: Mode;
   tier?: Tier;
   account?: string;
+  accountName?: string;
+  /** How to describe the mode to people, e.g. "sending access" instead of "test mode". */
+  modeLabel?: string;
   expires?: string | null;
   expiringSoon?: boolean;
   /** Env vars that are missing from the vault or .env. */
@@ -58,6 +75,7 @@ export interface ConnectResult {
   /** Env vars now present in .env (names only). */
   envVars?: string[];
   account?: string;
+  accountName?: string;
   mode?: Mode;
   expires?: string | null;
 }
@@ -67,7 +85,11 @@ export interface VerifyResult {
   ok: boolean;
   message: string;
   account?: string;
+  accountName?: string;
   mode?: Mode;
+  warnings?: string[];
+  /** The value is stored, but Keysmith has no safe way to check the provider accepts it. */
+  unverified?: boolean;
 }
 
 export interface AuthInjection {
@@ -80,6 +102,11 @@ export interface AuthInjection {
 export interface Recipe {
   id: string;
   displayName: string;
+  support: Support;
+  /** Official page confirming the env vars and the verify call. */
+  docsUrl?: string;
+  /** The read-only call verify makes, for people, e.g. "GET api.github.com/user". */
+  verifiedWith?: string;
   envVars: EnvVarSpec[];
   /** Hosts the proxy may call for this service. */
   hosts: string[];
@@ -87,6 +114,14 @@ export interface Recipe {
   tiers: Tier[];
   /** Human steps that may be needed, in plain words. */
   humanSteps: string[];
+  /** Env vars that depend on the project (e.g. custom secrets). Defaults to `envVars`. */
+  envVarsFor?(ctx: RecipeContext): EnvVarSpec[];
+  /** What in a project shows it needs this service (used by scan). */
+  signals?: { packages: string[]; envPrefixes?: string[] };
+  /** Replaces "<mode> mode" in human output, e.g. "sending access". */
+  modeLabel?: string;
+  /** What rotate does for this service, in plain words. */
+  rotation?: string;
   detect(ctx: RecipeContext): Promise<Status>;
   connect(ctx: RecipeContext): Promise<ConnectResult>;
   verify(ctx: RecipeContext): Promise<VerifyResult>;

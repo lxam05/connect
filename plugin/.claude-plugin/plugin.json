@@ -1,0 +1,10 @@
+{
+  "name": "keysmith",
+  "version": "0.1.0",
+  "description": "/keysmith gets every API key your project needs into the macOS Keychain, with keysmith:// placeholders in .env, without the agent ever seeing a secret.",
+  "author": { "name": "Liam O'Connor" },
+  "homepage": "https://github.com/lxam05/connect",
+  "repository": "https://github.com/lxam05/connect",
+  "license": "MIT",
+  "keywords": ["secrets", "api-keys", "stripe", "supabase", "env"]
+}
