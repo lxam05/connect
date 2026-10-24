@@ -106,7 +106,11 @@ describe("catalog (guided paste) recipes", () => {
       });
       expect((await getRecipe("twilio").connect(ctx)).outcome).toBe("connected");
     }
-    expect(seen[0]).toMatchObject({ "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" });
+    expect(seen[0]).toMatchObject({
+      authorization: `Bearer ${anthropicKey}`,
+      "x-api-key": null,
+      "anthropic-version": "2023-06-01",
+    });
     expect(seen[1]!.authorization).toBe(
       `Basic ${Buffer.from(`${sid}:${authToken}`).toString("base64")}`,
     );

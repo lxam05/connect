@@ -31,7 +31,7 @@ export function validatorFor(v: CatalogVar, label: string): (value: string) => s
 
 function authHeaders(entry: VerifiedEntry, values: Values): Record<string, string> {
   const a = entry.auth;
-  if (a.type === "bearer") return { Authorization: `Bearer ${values[a.secret]}` };
+  if (a.type === "bearer") return { Authorization: `Bearer ${values[a.secret]}`, ...a.extra };
   if (a.type === "header") return { [a.name]: values[a.secret]!, ...a.extra };
   const basic = Buffer.from(`${values[a.user]}:${values[a.secret]}`).toString("base64");
   return { Authorization: `Basic ${basic}` };

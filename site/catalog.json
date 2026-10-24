@@ -157,11 +157,11 @@
       "capture"
     ],
     "humanSteps": [
-      "Copy ANTHROPIC_API_KEY from https://console.anthropic.com/settings/keys into a hidden macOS dialog."
+      "Copy ANTHROPIC_API_KEY from https://platform.claude.com/settings/keys into a hidden macOS dialog."
     ],
-    "rotation": "Not automatic: roll the key at https://console.anthropic.com/settings/keys, then run `keysmith connect anthropic` again after removing the old one.",
-    "keyPage": "https://console.anthropic.com/settings/keys",
-    "docsUrl": "https://platform.claude.com/docs/en/api/models/list",
+    "rotation": "Not automatic: roll the key at https://platform.claude.com/settings/keys, then run `keysmith connect anthropic` again after removing the old one.",
+    "keyPage": "https://platform.claude.com/settings/keys",
+    "docsUrl": "https://platform.claude.com/docs/en/api/overview#authentication",
     "verifiedWith": "GET api.anthropic.com/v1/models"
   },
   {
@@ -188,7 +188,7 @@
     ],
     "rotation": "Not automatic: roll the key at https://dashboard.clerk.com/last-active?path=api-keys, then run `keysmith connect clerk` again after removing the old one.",
     "keyPage": "https://dashboard.clerk.com/last-active?path=api-keys",
-    "docsUrl": "https://clerk.com/docs/guides/development/clerk-environment-variables",
+    "docsUrl": "https://github.com/clerk/openapi-specs/blob/main/bapi/2026-08-20.yml",
     "verifiedWith": "GET api.clerk.com/v1/users?limit=1"
   },
   {

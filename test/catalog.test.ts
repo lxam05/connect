@@ -140,3 +140,33 @@ describe("site catalog", () => {
     expect(text).not.toMatch(/blockedPaths|keysmith:\/\//);
   });
 });
+
+describe("Clerk proxy blocklist", () => {
+  it("refuses endpoints that mint, return or rotate secrets, and allows plain reads", async () => {
+    const secret = "sk_test_FakeClerkSecretABCDEFGHIJKLMNOP";
+    const clerkApi: Route = ({ url, headers }) =>
+      url.host === "api.clerk.com" && headers.get("authorization") === `Bearer ${secret}`
+        ? json({ data: [] })
+        : undefined;
+    const capture = new FakeCapture([secret, "pk_test_FakeClerkPublishableABCDEF"]);
+    const { ctx } = makeCtx({ capture, fetch: fakeFetch([clerkApi]).fetch });
+    expect((await getRecipe("clerk").connect(ctx)).outcome).toBe("connected");
+
+    for (const path of [
+      "/v1/api_keys",
+      "/v1/actor_tokens",
+      "/v1/sign_in_tokens",
+      "/v1/testing_tokens",
+      "/v1/m2m_tokens",
+      "/v1/machines/mch_1/secret_key",
+      "/v1/oauth_applications/oa_1/rotate_secret",
+      "/v1/sessions/sess_1/tokens",
+      "/v1/sessions/sess_1/tokens/supabase",
+      "/v1/users/user_1/oauth_access_tokens/google",
+      "/v1/directories/dir_1/rotate_api_key",
+      "/v1/instance",
+    ])
+      await expect(proxyRequest(ctx, "clerk", "GET", path), path).rejects.toThrow(/manages keys/);
+    expect((await proxyRequest(ctx, "clerk", "GET", "/v1/users?limit=1")).status).toBe(200);
+  });
+});

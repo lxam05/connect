@@ -17,7 +17,7 @@ export interface CatalogVar {
 }
 
 export type CatalogAuth =
-  | { type: "bearer"; secret: string }
+  | { type: "bearer"; secret: string; extra?: Record<string, string> }
   | { type: "header"; name: string; secret: string; extra?: Record<string, string> }
   | { type: "basic"; user: string; secret: string };
 
@@ -84,13 +84,14 @@ export const CATALOG: CatalogEntry[] = [
         description: "Anthropic API key",
       },
     ],
-    keyPage: "https://console.anthropic.com/settings/keys",
-    docsUrl: "https://platform.claude.com/docs/en/api/models/list",
+    keyPage: "https://platform.claude.com/settings/keys",
+    docsUrl: "https://platform.claude.com/docs/en/api/overview#authentication",
     host: "api.anthropic.com",
     auth: {
-      type: "header",
-      name: "x-api-key",
+      type: "bearer",
       secret: "ANTHROPIC_API_KEY",
+      // Still a documented version. Newer ones remove request parameters (e.g. temperature),
+      // which would break calls agents make through request().
       extra: { "anthropic-version": "2023-06-01" },
     },
     verifyPath: "/v1/models",
@@ -115,11 +116,17 @@ export const CATALOG: CatalogEntry[] = [
       },
     ],
     keyPage: "https://dashboard.clerk.com/last-active?path=api-keys",
-    docsUrl: "https://clerk.com/docs/guides/development/clerk-environment-variables",
+    docsUrl: "https://github.com/clerk/openapi-specs/blob/main/bapi/2026-08-20.yml",
     host: "api.clerk.com",
     auth: { type: "bearer", secret: "CLERK_SECRET_KEY" },
     verifyPath: "/v1/users?limit=1",
-    blockedPaths: [/^\/v1\/(instance|api_keys)\b/],
+    // Endpoints that manage the instance or mint, return or rotate secrets and tokens.
+    blockedPaths: [
+      /^\/v1\/(instance|api_keys|actor_tokens|sign_in_tokens|testing_tokens|m2m_tokens|admin_portal_link_tokens|oauth_applications|machines)\b/,
+      /^\/v1\/sessions\/[^/]+\/tokens\b/,
+      /^\/v1\/users\/[^/]+\/oauth_access_tokens\b/,
+      /\/rotate_api_key$/,
+    ],
   },
   {
     id: "sendgrid",
