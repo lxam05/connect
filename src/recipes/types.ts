@@ -16,7 +16,7 @@ export interface ConnectOptions {
   tier?: "auto" | "cli" | "capture";
   /** CLI usage: block and wait for browser approvals instead of returning action_required. */
   wait?: boolean;
-  /** Replace an existing connection (Stripe only), e.g. to switch accounts. */
+  /** Replace an existing connection (Stripe recipes only), e.g. to switch accounts. */
   force?: boolean;
 }
 

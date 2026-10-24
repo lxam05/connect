@@ -42,16 +42,16 @@ keysmith doctor
 
 ## CLI
 
-| Command                          | What it does                                                                                                    |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `keysmith list`                  | Services and the human steps each may need                                                                      |
-| `keysmith connect stripe resend` | Get keys, store in Keychain, write placeholders. Idempotent. `--tier capture` skips CLIs and asks you to paste. |
-| `keysmith status`                | Connected services, mode, expiry (no values)                                                                    |
-| `keysmith verify [service]`      | Proves keys work against a harmless read endpoint                                                               |
-| `keysmith rotate resend`         | New key → verify → swap in vault → revoke old key                                                               |
-| `keysmith run -- <cmd>`          | Run with real values injected, output redacted                                                                  |
-| `keysmith doctor [--fix]`        | Checks agent deny rules, `.gitignore`, Keychain access, Stripe CLI                                              |
-| `keysmith mcp`                   | MCP server over stdio                                                                                           |
+| Command                          | What it does                                                                                                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keysmith list`                  | Services and the human steps each may need                                                                                                                                                  |
+| `keysmith connect stripe resend` | Get keys, store in Keychain, write placeholders. Idempotent. `--tier capture` skips CLIs and asks you to paste. `--force` replaces an existing Stripe connection (e.g. to switch accounts). |
+| `keysmith status`                | Connected services, mode, expiry (no values)                                                                                                                                                |
+| `keysmith verify [service]`      | Proves keys work against a harmless read endpoint                                                                                                                                           |
+| `keysmith rotate resend`         | New key → verify → swap in vault → revoke old key                                                                                                                                           |
+| `keysmith run -- <cmd>`          | Run with real values injected, output redacted                                                                                                                                              |
+| `keysmith doctor [--fix]`        | Checks agent deny rules, `.gitignore`, Keychain access, Stripe CLI. `--fix` adds missing deny rules to `.claude/settings.json` and fixes `.gitignore`.                                      |
+| `keysmith mcp`                   | MCP server over stdio                                                                                                                                                                       |
 
 There is deliberately **no** `get`/`reveal` command.
 
@@ -70,7 +70,15 @@ All return metadata only. `rotate` asks for confirmation via MCP elicitation whe
 1. Uses the Stripe CLI (`stripe login --non-interactive`, device flow). You approve a pairing code in the browser. If the CLI isn't installed, the agent is told to ask you before running `brew install stripe/stripe-cli/stripe`.
 2. Reads the CLI's test-mode restricted key + publishable key from `~/.config/stripe/config.toml` in-process (never modifies it). CLI keys last 90 days; `status` warns 14 days before expiry.
 3. Verifies with `GET /v1/balance` (must be `livemode: false`) and checks the key can use Checkout. If it can't, it falls back to the dashboard page + secure paste and tells you why.
-4. Profile: set `KEYSMITH_STRIPE_PROFILE` to use a `stripe login --project-name` profile.
+4. Records the account (`GET /v1/account`) and shows it in `connect`, `status` and `verify`. If the Stripe CLI is on a different account, it warns and prints the `stripe switch` command, because `stripe listen` would forward events from the wrong account.
+5. Profile: set `KEYSMITH_STRIPE_PROFILE` to use a `stripe login --project-name` profile.
+
+**Stripe webhooks** (`keysmith connect stripe-webhook`)
+
+1. Reads the signing secret with `stripe listen --print-secret` in-process, stores it in the Keychain and writes `STRIPE_WEBHOOK_SECRET=keysmith://…` to `.env`.
+2. Refuses if the Stripe CLI is on a different account from the Stripe key, since the secret would be for the wrong account.
+3. Run the forwarder as `keysmith run -- stripe listen --forward-to localhost:3000/<route>`, so the secret `stripe listen` prints is redacted. Bare `stripe listen` is in the recommended deny rules.
+4. `verify` checks the stored secret still matches what `stripe listen` uses, without returning either.
 
 **Resend**
 
@@ -93,7 +101,7 @@ Note: Resend has no test-mode keys. Until you verify a domain, Resend only deliv
 
 **Known gap: same-user processes.** On macOS, any process running as you can potentially read Keychain items whose ACL trusts the binary that created them (here: `node`). An agent with unrestricted shell access could call `security find-generic-password -s keysmith …`, write a Node script using the same binding, or read `~/.config/stripe/config.toml` directly. Keysmith can't stop a determined same-user process in this version. Mitigations:
 
-- `keysmith doctor` checks that your Claude Code settings deny the obvious paths. Recommended `permissions.deny`:
+- `keysmith doctor` checks that your Claude Code settings deny the obvious paths, and `keysmith doctor --fix` adds any that are missing to `.claude/settings.json`. Recommended `permissions.deny`:
 
   ```json
   [
@@ -104,7 +112,8 @@ Note: Resend has no test-mode keys. Until you verify a domain, Resend only deliv
     "Read(~/.config/stripe/**)",
     "Read(~/.config/resend/**)",
     "Bash(cat ~/.config/stripe/*)",
-    "Bash(stripe config --list*)"
+    "Bash(stripe config --list*)",
+    "Bash(stripe listen*)"
   ]
   ```
 

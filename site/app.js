@@ -167,6 +167,7 @@ const DENY = [
   "Read(~/.config/resend/**)",
   "Bash(cat ~/.config/stripe/*)",
   "Bash(stripe config --list*)",
+  "Bash(stripe listen*)",
 ];
 
 /* ---------- docs ---------- */

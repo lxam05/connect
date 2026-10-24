@@ -95,7 +95,7 @@ function profileName(ctx: RecipeContext): string {
   return ctx.sys.env.KEYSMITH_STRIPE_PROFILE ?? "default";
 }
 
-function profileArgs(ctx: RecipeContext): string[] {
+export function profileArgs(ctx: RecipeContext): string[] {
   const p = profileName(ctx);
   return p === "default" ? [] : ["--project-name", p];
 }
@@ -110,7 +110,7 @@ async function stripeGet(ctx: RecipeContext, key: string, path: string): Promise
   });
 }
 
-interface Account {
+export interface Account {
   id: string;
   name?: string;
 }
@@ -148,7 +148,7 @@ async function checkKey(ctx: RecipeContext, key: string): Promise<KeyCheck> {
 }
 
 /** The account the Stripe CLI is currently using (what `stripe listen` forwards from). */
-async function cliAccount(ctx: RecipeContext): Promise<Account | undefined> {
+export async function cliAccount(ctx: RecipeContext): Promise<Account | undefined> {
   if (!(await ctx.sys.which("stripe"))) return undefined;
   const r = await ctx.sys.exec("stripe", ["get", "/v1/account", ...profileArgs(ctx)], {
     timeoutMs: 20_000,

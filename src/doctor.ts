@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +17,40 @@ export const RECOMMENDED_DENY = [
   "Read(~/.config/resend/**)",
   "Bash(cat ~/.config/stripe/*)",
   "Bash(stripe config --list*)",
+  // Bare `stripe listen` prints the webhook signing secret. Agents run it through
+  // `keysmith run -- stripe listen …`, which redacts it.
+  "Bash(stripe listen*)",
 ];
+
+const WHY_DENY =
+  "These stop your agent reading keys straight from the Keychain or provider CLI config.";
+
+/**
+ * Merge `rules` into permissions.deny of a Claude Code settings file, keeping everything
+ * else. Returns false (and leaves the file alone) if it exists but isn't valid JSON.
+ */
+export function addDenyRules(path: string, rules: string[]): boolean {
+  let json: Record<string, unknown> = {};
+  if (existsSync(path)) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+      json = parsed as Record<string, unknown>;
+    } catch {
+      return false;
+    }
+  }
+  const permissions =
+    json.permissions && typeof json.permissions === "object"
+      ? (json.permissions as Record<string, unknown>)
+      : {};
+  const existing = Array.isArray(permissions.deny) ? (permissions.deny as unknown[]) : [];
+  permissions.deny = [...existing, ...rules.filter((r) => !existing.includes(r))];
+  json.permissions = permissions;
+  mkdirSync(join(path, ".."), { recursive: true });
+  writeFileSync(path, JSON.stringify(json, null, 2) + "\n");
+  return true;
+}
 
 export interface Check {
   name: string;
@@ -40,7 +73,7 @@ export async function runDoctor(
   project: ProjectContext,
   sys: System,
   keychain: KeychainBackend,
-  opts: { fixGitignore?: boolean } = {},
+  opts: { fix?: boolean } = {},
 ): Promise<Check[]> {
   const checks: Check[] = [];
 
@@ -49,18 +82,29 @@ export async function runDoctor(
     join(project.root, ".claude", "settings.json"),
     join(project.root, ".claude", "settings.local.json"),
   ];
-  const deny = new Set(settingsFiles.flatMap(denyRules));
-  const missing = RECOMMENDED_DENY.filter((r) => !deny.has(r));
+  let deny = new Set(settingsFiles.flatMap(denyRules));
+  let missing = RECOMMENDED_DENY.filter((r) => !deny.has(r));
+  const projectSettings = settingsFiles[1]!;
+  let fixNote = "";
+  if (opts.fix && missing.length) {
+    if (addDenyRules(projectSettings, missing)) {
+      fixNote = ` Added ${missing.length} rule(s) to ${projectSettings}.`;
+      deny = new Set(settingsFiles.flatMap(denyRules));
+      missing = RECOMMENDED_DENY.filter((r) => !deny.has(r));
+    } else {
+      fixNote = ` Couldn't update ${projectSettings} because it isn't valid JSON. Fix it, then run doctor --fix again.`;
+    }
+  }
   checks.push({
     name: "Claude Code deny rules",
     ok: missing.length === 0,
     detail: missing.length
-      ? `Missing ${missing.length} rule(s). Add to .claude/settings.json → permissions.deny:\n${JSON.stringify(missing, null, 2)}`
-      : "All recommended deny rules are set.",
+      ? `Missing ${missing.length} rule(s). ${WHY_DENY} Run \`keysmith doctor --fix\` to add them to .claude/settings.json.${fixNote}\n${JSON.stringify(missing, null, 2)}`
+      : `All recommended deny rules are set.${fixNote}`,
   });
 
   const gitignorePath = join(project.root, ".gitignore");
-  if (opts.fixGitignore) ensureGitignore(project.root);
+  if (opts.fix) ensureGitignore(project.root);
   const gi = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf8") : "";
   const ignored = /^\/?(\.env\*?|\*\.env)$/m.test(gi);
   checks.push({

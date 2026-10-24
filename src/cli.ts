@@ -44,9 +44,12 @@ program
   .action(() => {
     const services = svc.listServices();
     if (json()) return log.out(JSON.stringify(services, null, 2));
+    const width = Math.max(...services.map((s) => s.id.length));
     for (const s of services) {
-      log.out(`${s.id.padEnd(8)} ${s.displayName} — ${s.envVars.map((v) => v.name).join(", ")}`);
-      for (const h of s.humanSteps) log.out(`         · ${h}`);
+      log.out(
+        `${s.id.padEnd(width)} ${s.displayName} — ${s.envVars.map((v) => v.name).join(", ")}`,
+      );
+      for (const h of s.humanSteps) log.out(`${" ".repeat(width + 1)}· ${h}`);
     }
   });
 
@@ -68,6 +71,7 @@ program
     const st = await svc.status(cliCtx());
     if (json()) return log.out(JSON.stringify(st, null, 2));
     log.out(`project ${st.project} (${st.root})`);
+    const width = Math.max(...st.services.map((s) => s.service.length));
     for (const s of st.services) {
       const bits: string[] = [s.state];
       if (s.mode) bits.push(`${s.mode} mode`);
@@ -75,7 +79,7 @@ program
       if (s.expires)
         bits.push(`expires ${s.expires.slice(0, 10)}${s.expiringSoon ? " (soon!)" : ""}`);
       if (s.missing?.length) bits.push(`missing ${s.missing.join(", ")}`);
-      log.out(`  ${s.service.padEnd(8)} ${bits.join(" · ")}`);
+      log.out(`  ${s.service.padEnd(width)} ${bits.join(" · ")}`);
     }
   });
 
@@ -145,12 +149,12 @@ program
 
 program
   .command("doctor")
-  .option("--fix", "add .env to .gitignore if missing")
+  .option("--fix", "add missing agent deny rules and .gitignore entries")
   .description("check that secrets are protected from agents and git")
   .action(async (opts: { fix?: boolean }) => {
     const ctx = cliCtx();
     const checks = await runDoctor(ctx.project, ctx.sys, new NativeKeychain(), {
-      fixGitignore: opts.fix,
+      fix: opts.fix,
     });
     if (json())
       return log.out(JSON.stringify({ checks, recommendedDeny: RECOMMENDED_DENY }, null, 2));
