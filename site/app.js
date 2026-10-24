@@ -600,6 +600,8 @@ const BLURBS = {
   resend: "Transactional email. Paste one key and Keysmith creates a sending-only key from it.",
   supabase: "Reads the project's keys through the Supabase CLI.",
   neon: "Stores the database connection string from the Neon CLI.",
+  github: "Reuses the GitHub CLI's token, or a fine-grained token you paste. Reads only.",
+  railway: "Paste a project token once. Keysmith checks which project and environment it's for.",
   custom: "Any other secret, pasted into the hidden dialog and stored unverified.",
 };
 const blurb = (s) => BLURBS[s.id] ?? SUPPORT[s.support].hint;
@@ -688,7 +690,11 @@ function genericServicePage(s) {
   const link = (u) => `<a href="${esc(u)}" rel="noopener">${esc(new URL(u).host)}</a>`;
   const rows = [
     ["Support", SUPPORT[s.support].label],
-    ["Verified with", s.verifiedWith ? `<code>${esc(s.verifiedWith)}</code>` : "Not verified"],
+    ...(s.verifiedWith
+      ? [["Verified with", `<code>${esc(s.verifiedWith)}</code>`]]
+      : s.support === "catalog-only" || s.support === "custom"
+        ? [["Verified with", "Not verified"]]
+        : []),
     ...(s.keyPage ? [["Key page", link(s.keyPage)]] : []),
     ...(s.docsUrl ? [["Docs", link(s.docsUrl)]] : []),
   ];

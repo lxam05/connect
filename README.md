@@ -114,6 +114,10 @@ Note: Resend has no test-mode keys. Until you verify a domain, Resend only deliv
 
 **Neon** (no paste): uses `neonctl` (`neonctl auth` once). Picks the project the same way and stores `DATABASE_URL` from `neonctl connection-string`. Verify checks the connection string's shape; Keysmith doesn't open database connections.
 
+**GitHub** (no paste with the GitHub CLI): reads the CLI's token with `gh auth token`, verifies it with `GET /user` and records the user. That token has every scope `gh` has, so Keysmith warns and suggests `keysmith connect github --force --tier capture` with a fine-grained token, which is the least-privilege option. GitHub has no test mode, so `request` is read-only, and key, secret and token endpoints are blocked.
+
+**Railway** (one paste): Railway only creates project tokens in the dashboard (project → Settings → Tokens). Paste one into the dialog; Keysmith verifies it with Railway's `projectToken` query and records the project and environment. Run the CLI as `keysmith run -- railway up`.
+
 **Vercel** (no paste, import): if the folder is linked (`vercel link`), setup runs `vercel env pull` for the development environment into a private temp file, routes each var to the recipe that owns it (or to custom secrets), and deletes the file.
 
 **Guided paste** (one dialog each, verified against a harmless read endpoint, usable through `request`): OpenAI, Anthropic, Groq, Clerk, SendGrid, Twilio, Postmark and Cloudflare. Cloudflare API tokens can't be created from a CLI login, so you paste the token once; `CLOUDFLARE_ACCOUNT_ID` is filled in from it.

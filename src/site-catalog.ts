@@ -34,6 +34,8 @@ export function siteCatalog(): SiteService[] {
       tiers: r.tiers,
       humanSteps: r.humanSteps,
       rotation: r.rotation,
+      docsUrl: r.docsUrl,
+      verifiedWith: r.verifiedWith,
     };
     if (entry) {
       service.keyPage = entry.keyPage;

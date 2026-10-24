@@ -28,12 +28,12 @@ Goal: Keysmith should connect hundreds of providers, not seven. This document is
 
 Every recipe declares `support`. Users and agents see it in `keysmith list` and `list_services`.
 
-| `support`        | Meaning                                                                                      | How it's built        |
-| ---------------- | -------------------------------------------------------------------------------------------- | --------------------- |
-| `dedicated`      | Keysmith obtains the key itself (CLI, OAuth or provisioning API), verifies it, may rotate it | Hand-written `Recipe` |
-| `verified-paste` | User pastes into the hidden dialog; Keysmith verifies against a documented read endpoint     | `CATALOG` entry       |
-| `catalog-only`   | User pastes into the hidden dialog; no safe verify endpoint, so the key is stored unverified | `CATALOG` entry       |
-| `custom`         | Any env var Keysmith has no entry for                                                        | The `custom` recipe   |
+| `support`        | Meaning                                                                                      | How it's built                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `dedicated`      | Keysmith obtains the key itself (CLI, OAuth or provisioning API), verifies it, may rotate it | Hand-written `Recipe`                                                                      |
+| `verified-paste` | User pastes into the hidden dialog; Keysmith verifies against a documented read endpoint     | `CATALOG` entry, or a hand-written `Recipe` when verifying needs more than a GET (Railway) |
+| `catalog-only`   | User pastes into the hidden dialog; no safe verify endpoint, so the key is stored unverified | `CATALOG` entry                                                                            |
+| `custom`         | Any env var Keysmith has no entry for                                                        | The `custom` recipe                                                                        |
 
 A catalog-only entry still earns its place: `scan` detects the provider, the dialog opens the right key page, the value is shape-checked and redacted from output. `verify` returns `ok: true, unverified: true` with the reason. Setup counts it separately from verified services.
 
@@ -119,7 +119,9 @@ Each batch ends with tests, lint and typecheck passing. The next batch starts on
    - Clerk: `GET /v1/users` and bearer auth confirmed from Clerk's official OpenAPI spec, now the entry's `docsUrl`. The same spec showed many endpoints that mint or return tokens and secrets (session tokens, users' OAuth tokens, actor, sign-in, M2M and machine secrets); `blockedPaths` now covers them.
    - Anthropic: switched to `Authorization: Bearer` (the documented default; `x-api-key` is a legacy fallback) and the new key page. `anthropic-version` stays `2023-06-01`, which is still documented, because `2026-10-21` removes request parameters agents may send through `request()`.
    - Open: the Anthropic docs require `anthropic-workspace-id` for keys not scoped to a workspace. Verify may fail for those keys until Keysmith asks for the workspace.
-3. **New dedicated recipes.** GitHub (via the `gh` CLI) and Railway (CLI or project token), each confirmed against official docs first.
+3. **GitHub and Railway** (done).
+   - GitHub is `dedicated`: it reads the CLI's token with `gh auth token --hostname github.com`, or takes a pasted fine-grained token (`--tier capture`), and verifies with `GET /user`, which GitHub lists as working with fine-grained tokens. A CLI token carries every scope `gh` has, so connect and verify warn and name the fine-grained alternative. GitHub has no test mode, so the proxy refuses writes, and it blocks key, secret and token endpoints.
+   - Railway is `verified-paste`, not `dedicated`: Railway documents no CLI command or API that creates or prints a project token. The user pastes a project token (one environment of one project, the least privilege Railway offers); Keysmith verifies it with the documented `query { projectToken { projectId environmentId } }`. No proxy: the API is GraphQL over POST, which the proxy refuses on live keys. Agents run `keysmith run -- railway up`.
 4. **Google Cloud.** Service-account JSON is a multi-line, file-shaped credential. It needs a new value kind in the vault and in `keysmith run` (e.g. write to a private temp file and set `GOOGLE_APPLICATION_CREDENTIALS`).
 5. **Category batches of about 20** (AI, email, auth, databases, payments, observability, storage). Each entry follows the checklist.
 

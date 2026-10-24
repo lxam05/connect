@@ -1,7 +1,9 @@
 import { CATALOG } from "./catalog.js";
 import { custom } from "./custom.js";
+import { github } from "./github.js";
 import { neon } from "./neon.js";
 import { pasteRecipe } from "./paste.js";
+import { railway } from "./railway.js";
 import { resend } from "./resend.js";
 import { stripe } from "./stripe.js";
 import { stripeWebhook } from "./stripe-webhook.js";
@@ -9,7 +11,7 @@ import { supabase } from "./supabase.js";
 import type { Recipe } from "./types.js";
 
 /** Recipes written for one provider, in the order setup connects them. */
-export const dedicated: Recipe[] = [supabase, neon, stripe, stripeWebhook, resend];
+export const dedicated: Recipe[] = [supabase, neon, stripe, stripeWebhook, resend, github, railway];
 
 /** Guided-paste recipes generated from the catalog. */
 export const catalog: Recipe[] = CATALOG.map(pasteRecipe);

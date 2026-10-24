@@ -103,6 +103,10 @@ export interface Recipe {
   id: string;
   displayName: string;
   support: Support;
+  /** Official page confirming the env vars and the verify call. */
+  docsUrl?: string;
+  /** The read-only call verify makes, for people, e.g. "GET api.github.com/user". */
+  verifiedWith?: string;
   envVars: EnvVarSpec[];
   /** Hosts the proxy may call for this service. */
   hosts: string[];

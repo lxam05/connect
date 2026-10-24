@@ -121,6 +121,50 @@
     "rotation": "Creates a new sending-only key with the stored full-access key, verifies it, swaps it in, then deletes the old one. Running apps must restart."
   },
   {
+    "id": "github",
+    "displayName": "GitHub",
+    "support": "dedicated",
+    "envVars": [
+      {
+        "name": "GITHUB_TOKEN",
+        "secret": true,
+        "description": "GitHub token"
+      }
+    ],
+    "tiers": [
+      "cli",
+      "capture"
+    ],
+    "humanSteps": [
+      "Sign in with `gh auth login`, unless the GitHub CLI is already signed in.",
+      "Without the GitHub CLI (or with --tier capture): paste a fine-grained token from https://github.com/settings/personal-access-tokens/new into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: run `gh auth refresh` (CLI token) or regenerate the fine-grained token, then `keysmith connect github --force`.",
+    "docsUrl": "https://docs.github.com/en/rest/users/users#get-the-authenticated-user",
+    "verifiedWith": "GET api.github.com/user"
+  },
+  {
+    "id": "railway",
+    "displayName": "Railway",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "RAILWAY_TOKEN",
+        "secret": true,
+        "description": "Railway project token (one environment of one project)"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Create a project token in your Railway project's Settings → Tokens (https://railway.com/dashboard) and paste it into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: create a new project token in the dashboard, run `keysmith connect railway --force`, then delete the old token.",
+    "docsUrl": "https://docs.railway.com/reference/public-api",
+    "verifiedWith": "POST backboard.railway.com/graphql/v2 (projectToken query)"
+  },
+  {
     "id": "openai",
     "displayName": "OpenAI",
     "support": "verified-paste",
@@ -138,9 +182,9 @@
       "Copy OPENAI_API_KEY from https://platform.openai.com/api-keys into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://platform.openai.com/api-keys, then run `keysmith connect openai` again after removing the old one.",
-    "keyPage": "https://platform.openai.com/api-keys",
     "docsUrl": "https://developers.openai.com/api/reference/resources/models/methods/list",
-    "verifiedWith": "GET api.openai.com/v1/models"
+    "verifiedWith": "GET api.openai.com/v1/models",
+    "keyPage": "https://platform.openai.com/api-keys"
   },
   {
     "id": "anthropic",
@@ -160,9 +204,9 @@
       "Copy ANTHROPIC_API_KEY from https://platform.claude.com/settings/keys into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://platform.claude.com/settings/keys, then run `keysmith connect anthropic` again after removing the old one.",
-    "keyPage": "https://platform.claude.com/settings/keys",
     "docsUrl": "https://platform.claude.com/docs/en/api/overview#authentication",
-    "verifiedWith": "GET api.anthropic.com/v1/models"
+    "verifiedWith": "GET api.anthropic.com/v1/models",
+    "keyPage": "https://platform.claude.com/settings/keys"
   },
   {
     "id": "clerk",
@@ -187,9 +231,9 @@
       "Copy CLERK_SECRET_KEY and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY from https://dashboard.clerk.com/last-active?path=api-keys into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://dashboard.clerk.com/last-active?path=api-keys, then run `keysmith connect clerk` again after removing the old one.",
-    "keyPage": "https://dashboard.clerk.com/last-active?path=api-keys",
     "docsUrl": "https://github.com/clerk/openapi-specs/blob/main/bapi/2026-08-20.yml",
-    "verifiedWith": "GET api.clerk.com/v1/users?limit=1"
+    "verifiedWith": "GET api.clerk.com/v1/users?limit=1",
+    "keyPage": "https://dashboard.clerk.com/last-active?path=api-keys"
   },
   {
     "id": "sendgrid",
@@ -209,9 +253,9 @@
       "Copy SENDGRID_API_KEY from https://app.sendgrid.com/settings/api_keys into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://app.sendgrid.com/settings/api_keys, then run `keysmith connect sendgrid` again after removing the old one.",
-    "keyPage": "https://app.sendgrid.com/settings/api_keys",
     "docsUrl": "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
-    "verifiedWith": "GET api.sendgrid.com/v3/scopes"
+    "verifiedWith": "GET api.sendgrid.com/v3/scopes",
+    "keyPage": "https://app.sendgrid.com/settings/api_keys"
   },
   {
     "id": "twilio",
@@ -236,9 +280,9 @@
       "Copy TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN from https://console.twilio.com/ into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://console.twilio.com/, then run `keysmith connect twilio` again after removing the old one.",
-    "keyPage": "https://console.twilio.com/",
     "docsUrl": "https://www.twilio.com/docs/usage/requests-to-twilio",
-    "verifiedWith": "GET api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}.json"
+    "verifiedWith": "GET api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}.json",
+    "keyPage": "https://console.twilio.com/"
   },
   {
     "id": "postmark",
@@ -258,9 +302,9 @@
       "Copy POSTMARK_SERVER_TOKEN from https://account.postmarkapp.com/servers into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://account.postmarkapp.com/servers, then run `keysmith connect postmark` again after removing the old one.",
-    "keyPage": "https://account.postmarkapp.com/servers",
     "docsUrl": "https://postmarkapp.com/developer/api/server-api",
-    "verifiedWith": "GET api.postmarkapp.com/server"
+    "verifiedWith": "GET api.postmarkapp.com/server",
+    "keyPage": "https://account.postmarkapp.com/servers"
   },
   {
     "id": "cloudflare",
@@ -285,9 +329,9 @@
       "Copy CLOUDFLARE_API_TOKEN from https://dash.cloudflare.com/profile/api-tokens into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://dash.cloudflare.com/profile/api-tokens, then run `keysmith connect cloudflare` again after removing the old one.",
-    "keyPage": "https://dash.cloudflare.com/profile/api-tokens",
     "docsUrl": "https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/",
-    "verifiedWith": "GET api.cloudflare.com/client/v4/user/tokens/verify"
+    "verifiedWith": "GET api.cloudflare.com/client/v4/user/tokens/verify",
+    "keyPage": "https://dash.cloudflare.com/profile/api-tokens"
   },
   {
     "id": "groq",
@@ -307,9 +351,9 @@
       "Copy GROQ_API_KEY from https://console.groq.com/keys into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://console.groq.com/keys, then run `keysmith connect groq` again after removing the old one.",
-    "keyPage": "https://console.groq.com/keys",
     "docsUrl": "https://console.groq.com/docs/models",
-    "verifiedWith": "GET api.groq.com/openai/v1/models"
+    "verifiedWith": "GET api.groq.com/openai/v1/models",
+    "keyPage": "https://console.groq.com/keys"
   },
   {
     "id": "upstash-redis",
@@ -334,8 +378,8 @@
       "Copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN from https://console.upstash.com/ into a hidden macOS dialog."
     ],
     "rotation": "Not automatic: roll the key at https://console.upstash.com/, then run `keysmith connect upstash-redis` again after removing the old one.",
-    "keyPage": "https://console.upstash.com/",
     "docsUrl": "https://upstash.com/docs/redis/sdks/ts/getstarted",
+    "keyPage": "https://console.upstash.com/",
     "unverifiable": "Each database has its own REST host, which Keysmith can't verify against yet."
   },
   {
