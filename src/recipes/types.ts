@@ -16,6 +16,8 @@ export interface ConnectOptions {
   tier?: "auto" | "cli" | "capture";
   /** CLI usage: block and wait for browser approvals instead of returning action_required. */
   wait?: boolean;
+  /** Replace an existing connection (Stripe only), e.g. to switch accounts. */
+  force?: boolean;
 }
 
 export interface RecipeContext {
@@ -39,6 +41,7 @@ export interface Status {
   mode?: Mode;
   tier?: Tier;
   account?: string;
+  accountName?: string;
   expires?: string | null;
   expiringSoon?: boolean;
   /** Env vars that are missing from the vault or .env. */
@@ -58,6 +61,7 @@ export interface ConnectResult {
   /** Env vars now present in .env (names only). */
   envVars?: string[];
   account?: string;
+  accountName?: string;
   mode?: Mode;
   expires?: string | null;
 }
@@ -67,7 +71,9 @@ export interface VerifyResult {
   ok: boolean;
   message: string;
   account?: string;
+  accountName?: string;
   mode?: Mode;
+  warnings?: string[];
 }
 
 export interface AuthInjection {

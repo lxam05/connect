@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { createContext } from "./app.js";
 import { RECOMMENDED_DENY, runDoctor } from "./doctor.js";
 import { log } from "./log.js";
+import { accountLabel } from "./recipes/common.js";
 import { runMcpServer } from "./mcp/server.js";
 import type { ConnectResult, ConnectOptions } from "./recipes/types.js";
 import { MissingSecretError, runWithSecrets } from "./runner.js";
@@ -53,9 +54,11 @@ program
   .command("connect")
   .argument("<service...>", "service id(s), e.g. stripe resend")
   .option("--tier <tier>", "auto | cli | capture", "auto")
+  .option("--force", "replace an existing Stripe connection, e.g. to switch accounts")
   .description("connect services to this project")
-  .action(async (services: string[], opts: { tier: ConnectOptions["tier"] }) => {
-    for (const s of services) printResult(await svc.connect(cliCtx({ tier: opts.tier }), s));
+  .action(async (services: string[], opts: { tier: ConnectOptions["tier"]; force?: boolean }) => {
+    for (const s of services)
+      printResult(await svc.connect(cliCtx({ tier: opts.tier, force: opts.force }), s));
   });
 
 program
@@ -68,7 +71,7 @@ program
     for (const s of st.services) {
       const bits: string[] = [s.state];
       if (s.mode) bits.push(`${s.mode} mode`);
-      if (s.account) bits.push(s.account);
+      if (s.account) bits.push(`account ${accountLabel(s.account, s.accountName)}`);
       if (s.expires)
         bits.push(`expires ${s.expires.slice(0, 10)}${s.expiringSoon ? " (soon!)" : ""}`);
       if (s.missing?.length) bits.push(`missing ${s.missing.join(", ")}`);
@@ -91,7 +94,10 @@ program
     for (const id of ids) {
       const r = await svc.verify(ctx, id);
       if (json()) log.out(JSON.stringify(r));
-      else log.out(`${r.ok ? "✓" : "✗"} ${id}: ${r.message}`);
+      else {
+        log.out(`${r.ok ? "✓" : "✗"} ${id}: ${r.message}`);
+        for (const w of r.warnings ?? []) log.out(`  warning: ${w}`);
+      }
       if (!r.ok) process.exitCode = 1;
     }
   });

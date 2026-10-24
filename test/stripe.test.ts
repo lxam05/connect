@@ -55,6 +55,20 @@ describe("stripe recipe", () => {
     expect(again.outcome).toBe("already_connected");
   });
 
+  it("replaces an existing connection with --force", async () => {
+    const files = { [CONFIG_PATH]: config() };
+    const sys = fakeSys({ which: { stripe: "/opt/homebrew/bin/stripe" }, files });
+    const { ctx, keychain } = makeCtx({ sys, fetch: fakeFetch([stripeApi()]).fetch });
+    await stripe.connect(ctx);
+
+    const other = "rk_test_51OtherAccountKeyABCDEFGHIJ";
+    files[CONFIG_PATH] = config(other);
+    ctx.options.force = true;
+    const r = await stripe.connect(ctx);
+    expect(r.outcome).toBe("connected");
+    expect(keychain.items.get("demo/stripe/STRIPE_SECRET_KEY")).toBe(other);
+  });
+
   it("asks before installing the CLI", async () => {
     const { ctx } = makeCtx({ sys: fakeSys() });
     const r = await stripe.connect(ctx);
@@ -182,6 +196,106 @@ describe("stripe recipe", () => {
     const v = await stripe.verify(ctx);
     expect(v).toMatchObject({ ok: true, mode: "test", account: "acct_123" });
     expect(JSON.stringify(v)).not.toContain(SK);
+  });
+
+  describe("account", () => {
+    const account =
+      (id = "acct_Sandbox1", name = "Gap Detector sandbox"): Route =>
+      ({ url }) =>
+        url.host === "api.stripe.com" && url.pathname === "/v1/account"
+          ? json({ id, settings: { dashboard: { display_name: name } } })
+          : undefined;
+    const cliOn = (id: string, name: string) =>
+      fakeSys({
+        which: { stripe: "/usr/bin/stripe" },
+        exec: (_cmd, args) =>
+          args[0] === "get" && args[1] === "/v1/account"
+            ? {
+                code: 0,
+                stdout: JSON.stringify({ id, settings: { dashboard: { display_name: name } } }),
+                stderr: "",
+              }
+            : { code: 1, stdout: "", stderr: "" },
+      });
+    const pasted = "sk_test_51DashboardKeyABCDEFGHIJKL";
+
+    it("records and shows the account a pasted key belongs to", async () => {
+      const sys = cliOn("acct_Sandbox1", "Gap Detector sandbox");
+      const capture = new FakeCapture([pasted, PK]);
+      const { ctx, vault } = makeCtx({
+        sys,
+        capture,
+        options: { tier: "capture" },
+        fetch: fakeFetch([account(), stripeApi()]).fetch,
+      });
+      const r = await stripe.connect(ctx);
+      expect(r).toMatchObject({ outcome: "connected", account: "acct_Sandbox1" });
+      expect(r.message).toContain('"Gap Detector sandbox" (acct_Sandbox1)');
+      expect(r.warnings).toBeUndefined();
+      expect(vault.meta("keysmith://demo/stripe/STRIPE_SECRET_KEY")).toMatchObject({
+        account: "acct_Sandbox1",
+        accountName: "Gap Detector sandbox",
+      });
+      const status = await stripe.detect(ctx);
+      expect(status).toMatchObject({
+        account: "acct_Sandbox1",
+        accountName: "Gap Detector sandbox",
+      });
+    });
+
+    it("warns when the Stripe CLI is on a different account", async () => {
+      const sys = cliOn("acct_Main1", "Gap Detector");
+      const capture = new FakeCapture([pasted, PK]);
+      const { ctx } = makeCtx({
+        sys,
+        capture,
+        options: { tier: "capture" },
+        fetch: fakeFetch([account(), stripeApi()]).fetch,
+      });
+      const r = await stripe.connect(ctx);
+      expect(r.outcome).toBe("connected");
+      expect(r.warnings?.[0]).toMatch(/"Gap Detector" \(acct_Main1\)/);
+      expect(r.warnings?.[0]).toMatch(/stripe switch acct_Sandbox1/);
+
+      const v = await stripe.verify(ctx);
+      expect(v.warnings?.[0]).toMatch(/stripe switch acct_Sandbox1/);
+      expect(JSON.stringify([r, v])).not.toContain(pasted);
+    });
+
+    it("backfills the account on verify for older connections", async () => {
+      const sys = fakeSys({ which: {} });
+      const { ctx, vault } = makeCtx({ sys, fetch: fakeFetch([account(), stripeApi()]).fetch });
+      vault.set("keysmith://demo/stripe/STRIPE_SECRET_KEY", pasted, {
+        mode: "test",
+        tier: "capture",
+        expires: null,
+      });
+      const v = await stripe.verify(ctx);
+      expect(v).toMatchObject({ ok: true, account: "acct_Sandbox1" });
+      expect(v.warnings).toBeUndefined();
+      expect(vault.meta("keysmith://demo/stripe/STRIPE_SECRET_KEY")?.accountName).toBe(
+        "Gap Detector sandbox",
+      );
+    });
+
+    it("still connects when a restricted key can't read the account", async () => {
+      const sys = fakeSys({ which: {} });
+      const capture = new FakeCapture([pasted, PK]);
+      const denied: Route = ({ url }) =>
+        url.pathname === "/v1/account"
+          ? json({ error: { message: "restricted" } }, 403)
+          : undefined;
+      const { ctx } = makeCtx({
+        sys,
+        capture,
+        options: { tier: "capture" },
+        fetch: fakeFetch([denied, stripeApi()]).fetch,
+      });
+      const r = await stripe.connect(ctx);
+      expect(r.outcome).toBe("connected");
+      expect(r.account).toBeUndefined();
+      expect(r.message).toMatch(/couldn't read the account/);
+    });
   });
 
   it("accepts only known stripe login follow-ups", () => {

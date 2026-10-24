@@ -18,6 +18,8 @@ export interface SecretMeta {
   providerKeyId?: string;
   /** Provider account identifier (not secret). */
   account?: string;
+  /** Human-readable account name, e.g. the Stripe dashboard display name (not secret). */
+  accountName?: string;
 }
 
 export type NewSecretMeta = Omit<

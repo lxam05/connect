@@ -42,6 +42,7 @@ export function detectFromState(ctx: RecipeContext, recipe: Recipe): Status {
     mode: primary?.mode,
     tier: primary?.tier,
     account: primary?.account,
+    accountName: primary?.accountName,
     expires,
     missing: missing.length ? missing : undefined,
   };
@@ -110,9 +111,14 @@ export function repairEnv(
   };
 }
 
+/** `"Gap Detector sandbox" (acct_123)`, or just the id when there's no name. */
+export function accountLabel(id: string, name?: string): string {
+  return name ? `"${name}" (${id})` : id;
+}
+
 export function alreadyConnected(recipe: Recipe, status: Status): ConnectResult {
   const parts = [`${recipe.displayName} is already connected (${status.mode ?? "test"} mode).`];
-  if (status.account) parts.push(`Account ${status.account}.`);
+  if (status.account) parts.push(`Account ${accountLabel(status.account, status.accountName)}.`);
   if (status.expiringSoon && status.expires)
     parts.push(`Key expires ${status.expires.slice(0, 10)}.`);
   return {
@@ -121,6 +127,7 @@ export function alreadyConnected(recipe: Recipe, status: Status): ConnectResult 
     message: parts.join(" "),
     mode: status.mode,
     account: status.account,
+    accountName: status.accountName,
     expires: status.expires,
     envVars: recipe.envVars.filter((s) => !s.vaultOnly).map((s) => s.name),
   };
