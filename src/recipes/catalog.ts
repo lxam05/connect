@@ -1,6 +1,7 @@
 /**
  * Services connected by a guided paste: open the provider's key page, take the key in a
- * hidden dialog, verify it against a harmless read endpoint. Data only; see paste.ts.
+ * hidden dialog, verify it against a harmless read endpoint when the provider has one.
+ * Data only; see paste.ts. How to add an entry: docs/provider-expansion.md.
  */
 
 export interface CatalogVar {
@@ -20,13 +21,19 @@ export type CatalogAuth =
   | { type: "header"; name: string; secret: string; extra?: Record<string, string> }
   | { type: "basic"; user: string; secret: string };
 
-export interface CatalogEntry {
+interface BaseEntry {
   id: string;
   displayName: string;
   packages: string[];
   envVars: CatalogVar[];
   /** Where the user creates the key. */
   keyPage: string;
+  /** Official page confirming the env var names (and the verify endpoint, when there is one). */
+  docsUrl?: string;
+}
+
+/** A key Keysmith checks against a documented, free, read-only endpoint. */
+export interface VerifiedEntry extends BaseEntry {
   /** API host the proxy may call. */
   host: string;
   auth: CatalogAuth;
@@ -34,6 +41,18 @@ export interface CatalogEntry {
   verifyPath: string;
   /** Paths that manage keys or the account; never proxied. */
   blockedPaths: RegExp[];
+}
+
+/** A key Keysmith stores and redacts but can't check. Never reported as verified. */
+export interface CatalogOnlyEntry extends BaseEntry {
+  /** Why Keysmith can't verify the key, in one sentence for people. */
+  unverifiable: string;
+}
+
+export type CatalogEntry = VerifiedEntry | CatalogOnlyEntry;
+
+export function isVerified(entry: CatalogEntry): entry is VerifiedEntry {
+  return "verifyPath" in entry;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,5 +196,29 @@ export const CATALOG: CatalogEntry[] = [
     auth: { type: "bearer", secret: "CLOUDFLARE_API_TOKEN" },
     verifyPath: "/client/v4/user/tokens/verify",
     blockedPaths: [/^\/client\/v4\/(user|accounts\/[^/]+)\/tokens\b/],
+  },
+  {
+    id: "groq",
+    displayName: "Groq",
+    packages: ["groq-sdk", "@ai-sdk/groq"],
+    envVars: [{ name: "GROQ_API_KEY", secret: true, description: "Groq API key" }],
+    keyPage: "https://console.groq.com/keys",
+    docsUrl: "https://console.groq.com/docs/models",
+    host: "api.groq.com",
+    auth: { type: "bearer", secret: "GROQ_API_KEY" },
+    verifyPath: "/openai/v1/models",
+    blockedPaths: [],
+  },
+  {
+    id: "upstash-redis",
+    displayName: "Upstash Redis",
+    packages: ["@upstash/redis"],
+    envVars: [
+      { name: "UPSTASH_REDIS_REST_URL", secret: false, description: "REST URL (identifier)" },
+      { name: "UPSTASH_REDIS_REST_TOKEN", secret: true, description: "REST token" },
+    ],
+    keyPage: "https://console.upstash.com/",
+    docsUrl: "https://upstash.com/docs/redis/sdks/ts/getstarted",
+    unverifiable: "Each database has its own REST host, which Keysmith can't verify against yet.",
   },
 ];

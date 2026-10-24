@@ -164,6 +164,7 @@ async function domainSummary(ctx: RecipeContext, adminKey: string): Promise<stri
 export const resend: Recipe = {
   id: "resend",
   displayName: "Resend",
+  support: "dedicated",
   envVars: [
     { name: SENDING, secret: true, description: "Sending-access API key used by the app" },
     {

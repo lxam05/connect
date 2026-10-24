@@ -49,7 +49,7 @@ program
     const width = Math.max(...services.map((s) => s.id.length));
     for (const s of services) {
       log.out(
-        `${s.id.padEnd(width)} ${s.displayName} — ${s.envVars.map((v) => v.name).join(", ")}`,
+        `${s.id.padEnd(width)} ${s.displayName} (${s.support}) — ${s.envVars.map((v) => v.name).join(", ")}`,
       );
       for (const h of s.humanSteps) log.out(`${" ".repeat(width + 1)}· ${h}`);
     }
@@ -173,7 +173,7 @@ program
       const r = await svc.verify(ctx, id);
       if (json()) log.out(JSON.stringify(r));
       else {
-        log.out(`${r.ok ? "✓" : "✗"} ${id}: ${r.message}`);
+        log.out(`${r.ok ? (r.unverified ? "·" : "✓") : "✗"} ${id}: ${r.message}`);
         for (const w of r.warnings ?? []) log.out(`  warning: ${w}`);
       }
       if (!r.ok) process.exitCode = 1;

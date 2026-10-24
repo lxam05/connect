@@ -18,7 +18,7 @@ export interface SetupService {
   humanSteps?: string[];
   warnings?: string[];
   /** Result of verify after connecting; absent when it wasn't connected. */
-  verified?: { ok: boolean; message: string };
+  verified?: { ok: boolean; message: string; unverified?: boolean };
 }
 
 export interface SetupResult {
@@ -129,7 +129,7 @@ export async function setupProject(
     if (s.id === custom.id) ctx.options = { ...saved, vars: customVars };
     try {
       const v = await getRecipe(s.id).verify(ctx);
-      s.verified = { ok: v.ok, message: v.message };
+      s.verified = { ok: v.ok, message: v.message, unverified: v.unverified };
       s.account ??= v.account;
       s.accountName ??= v.accountName;
       if (v.warnings?.length) s.warnings = [...(s.warnings ?? []), ...v.warnings];
@@ -149,10 +149,11 @@ export async function setupProject(
 
   const done = services.every((s) => connected(s.outcome) && s.verified?.ok !== false);
   const ok = services.filter((s) => connected(s.outcome)).length;
+  const unverified = services.filter((s) => s.verified?.unverified).length;
   const summary = !services.length
     ? "This project doesn't seem to need any API keys Keysmith knows about. Use add_secret (or `keysmith add VAR`) for others."
     : done
-      ? `Done: ${ok} service(s) connected and verified. .env holds keysmith:// placeholders; real values are injected by \`keysmith run\`.${devScript.changed ? ` The dev script now runs \`${devScript.command}\`.` : ""}`
+      ? `Done: ${ok} service(s) connected${unverified ? ` (${unverified} stored but not verifiable)` : " and verified"}. .env holds keysmith:// placeholders; real values are injected by \`keysmith run\`.${devScript.changed ? ` The dev script now runs \`${devScript.command}\`.` : ""}`
       : `${ok} of ${services.length} service(s) ready. Do the human steps, then run setup again.`;
 
   return {
@@ -173,13 +174,21 @@ export async function setupProject(
 export function describeSetupService(s: SetupService): string {
   const icon = s.verified
     ? s.verified.ok
-      ? "✓"
+      ? s.verified.unverified
+        ? "·"
+        : "✓"
       : "✗"
     : s.outcome === "action_required"
       ? "→"
       : "✗";
   const where = s.account ? ` · ${accountLabel(s.account, s.accountName)}` : "";
   const detail =
-    s.verified && !s.verified.ok ? s.verified.message : s.verified ? "ready" : s.message;
+    s.verified && !s.verified.ok
+      ? s.verified.message
+      : s.verified?.unverified
+        ? "stored, not verified"
+        : s.verified
+          ? "ready"
+          : s.message;
   return `${icon} ${s.displayName}${where}: ${detail}`;
 }

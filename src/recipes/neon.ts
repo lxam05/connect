@@ -57,6 +57,7 @@ function describeUrl(value: string): { ok: true; host: string } | { ok: false; m
 export const neon: Recipe = {
   id: "neon",
   displayName: "Neon",
+  support: "dedicated",
   envVars: [{ name: DATABASE_URL, secret: true, description: "Postgres connection string" }],
   hosts: [],
   tiers: ["cli"],

@@ -341,6 +341,7 @@ async function captureKeys(
 export const stripe: Recipe = {
   id: "stripe",
   displayName: "Stripe",
+  support: "dedicated",
   envVars: [
     { name: SECRET, secret: true, description: "Test-mode secret (or restricted) key" },
     { name: PUBLISHABLE, secret: false, description: "Test-mode publishable key (public)" },

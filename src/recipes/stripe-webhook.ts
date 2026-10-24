@@ -44,6 +44,7 @@ function mismatch(cli: Account, key: Account): string {
 export const stripeWebhook: Recipe = {
   id: "stripe-webhook",
   displayName: "Stripe webhooks",
+  support: "dedicated",
   envVars: [
     {
       name: SECRET,

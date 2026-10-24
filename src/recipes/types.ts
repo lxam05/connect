@@ -38,6 +38,12 @@ export interface RecipeContext {
   progress: (msg: string) => void;
 }
 
+/**
+ * How far Keysmith supports a service: obtains the key itself, verifies a pasted key,
+ * stores a pasted key it can't verify, or stores any other secret.
+ */
+export type Support = "dedicated" | "verified-paste" | "catalog-only" | "custom";
+
 export type ConnState = "connected" | "not_connected" | "incomplete" | "expired";
 
 export interface Status {
@@ -82,6 +88,8 @@ export interface VerifyResult {
   accountName?: string;
   mode?: Mode;
   warnings?: string[];
+  /** The value is stored, but Keysmith has no safe way to check the provider accepts it. */
+  unverified?: boolean;
 }
 
 export interface AuthInjection {
@@ -94,6 +102,7 @@ export interface AuthInjection {
 export interface Recipe {
   id: string;
   displayName: string;
+  support: Support;
   envVars: EnvVarSpec[];
   /** Hosts the proxy may call for this service. */
   hosts: string[];

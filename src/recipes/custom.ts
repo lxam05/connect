@@ -27,6 +27,7 @@ function validate(value: string): string | null {
 export const custom: Recipe = {
   id: "custom",
   displayName: "Other secrets",
+  support: "custom",
   envVars: [],
   hosts: [],
   tiers: ["capture"],
@@ -100,6 +101,7 @@ export const custom: Recipe = {
     return {
       service: this.id,
       ok: true,
+      unverified: true,
       message: `${names.join(", ")} stored (Keysmith can't check unknown services).`,
     };
   },

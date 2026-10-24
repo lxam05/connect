@@ -8,6 +8,7 @@ export function listServices() {
   return recipes.map((r) => ({
     id: r.id,
     displayName: r.displayName,
+    support: r.support,
     envVars: r.envVars
       .filter((v) => !v.vaultOnly)
       .map((v) => ({ name: v.name, secret: v.secret, description: v.description })),

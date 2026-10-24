@@ -94,6 +94,7 @@ async function serviceKeyWorks(ctx: RecipeContext, ref: string, key: string): Pr
 export const supabase: Recipe = {
   id: "supabase",
   displayName: "Supabase",
+  support: "dedicated",
   envVars: [
     { name: URL_VAR, secret: false, description: "Project URL (public)" },
     {

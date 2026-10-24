@@ -1,7 +1,7 @@
 import { prefixValidator } from "../capture/index.js";
 import { envPath, readEnvFile } from "../env/index.js";
 import { isRef } from "../vault/index.js";
-import type { CatalogEntry, CatalogVar } from "./catalog.js";
+import { type CatalogEntry, type CatalogVar, type VerifiedEntry, isVerified } from "./catalog.js";
 import {
   accountLabel,
   alreadyConnected,
@@ -29,7 +29,7 @@ export function validatorFor(v: CatalogVar, label: string): (value: string) => s
   };
 }
 
-function authHeaders(entry: CatalogEntry, values: Values): Record<string, string> {
+function authHeaders(entry: VerifiedEntry, values: Values): Record<string, string> {
   const a = entry.auth;
   if (a.type === "bearer") return { Authorization: `Bearer ${values[a.secret]}` };
   if (a.type === "header") return { [a.name]: values[a.secret]!, ...a.extra };
@@ -39,7 +39,7 @@ function authHeaders(entry: CatalogEntry, values: Values): Record<string, string
 
 async function callApi(
   ctx: RecipeContext,
-  entry: CatalogEntry,
+  entry: VerifiedEntry,
   values: Values,
   pathTemplate: string,
 ): Promise<Response> {
@@ -53,7 +53,7 @@ async function callApi(
 
 async function check(
   ctx: RecipeContext,
-  entry: CatalogEntry,
+  entry: VerifiedEntry,
   values: Values,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const res = await callApi(ctx, entry, values, entry.verifyPath);
@@ -71,7 +71,7 @@ interface Derived {
 /** Values filled in from the API rather than asked for. Keyed by env var name. */
 const DERIVERS: Record<
   string,
-  (ctx: RecipeContext, entry: CatalogEntry, values: Values) => Promise<Derived>
+  (ctx: RecipeContext, entry: VerifiedEntry, values: Values) => Promise<Derived>
 > = {
   async CLOUDFLARE_ACCOUNT_ID(ctx, entry, values) {
     const res = await callApi(ctx, entry, values, "/client/v4/accounts?per_page=50");
@@ -93,6 +93,10 @@ const DERIVERS: Record<
 export function pasteRecipe(entry: CatalogEntry): Recipe {
   const plain = entry.envVars.filter((v) => !v.derived);
   const derived = entry.envVars.filter((v) => v.derived);
+  const verified = isVerified(entry) ? entry : undefined;
+  const unverifiable = isVerified(entry) ? "" : entry.unverifiable;
+  /** The value that decides the mode: the auth secret, or the first secret var. */
+  const primary = verified?.auth.secret ?? plain.find((v) => v.secret)!.name;
 
   /** Values already available: secrets from the vault, public ones from .env. */
   function stored(ctx: RecipeContext, recipe: Recipe): Values {
@@ -108,18 +112,20 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
   return {
     id: entry.id,
     displayName: entry.displayName,
+    support: verified ? "verified-paste" : "catalog-only",
     envVars: entry.envVars.map((v) => ({
       name: v.name,
       secret: v.secret,
       description: v.description,
     })),
-    hosts: [entry.host],
+    hosts: verified ? [verified.host] : [],
     tiers: ["capture"],
     humanSteps: [
       `Copy ${plain.map((v) => v.name).join(" and ")} from ${entry.keyPage} into a hidden macOS dialog.`,
     ],
-    blockedPaths: entry.blockedPaths,
+    blockedPaths: verified?.blockedPaths,
     signals: { packages: entry.packages },
+    modeLabel: verified ? undefined : "stored, not verified",
     rotation: `Not automatic: roll the key at ${entry.keyPage}, then run \`keysmith connect ${entry.id}\` again after removing the old one.`,
 
     async detect(ctx) {
@@ -163,21 +169,22 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
         values[v.name] = r.value;
       }
 
-      const ok = await check(ctx, entry, values);
-      if (!ok.ok)
-        return failed(
-          this,
-          `${entry.displayName} rejected the key (${ok.message}). Nothing was saved.`,
-        );
+      if (verified) {
+        const ok = await check(ctx, verified, values);
+        if (!ok.ok)
+          return failed(
+            this,
+            `${entry.displayName} rejected the key (${ok.message}). Nothing was saved.`,
+          );
+      }
 
-      const secret = values[entry.auth.secret]!;
-      const mode = inferMode(secret);
-      const tier = adopted.includes(entry.auth.secret) ? "imported" : "capture";
+      const mode = inferMode(values[primary]!);
+      const tier = adopted.includes(primary) ? "imported" : "capture";
       let account: { id: string; name?: string } | undefined;
       const derivedValues: Values = {};
       const pending: ConnectResult[] = [];
       for (const v of derived) {
-        const d = await DERIVERS[v.name]!(ctx, entry, values);
+        const d = await DERIVERS[v.name]!(ctx, verified!, values);
         if (d.value) {
           derivedValues[v.name] = d.value;
           account ??= d.account;
@@ -200,10 +207,11 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
       ]);
       if (pending.length) return { ...pending[0]!, envVars };
       const where = account ? `, account ${accountLabel(account.id, account.name)}` : "";
+      const how = verified ? `${mode} mode${where}` : `not verified: ${unverifiable}`;
       return {
         service: this.id,
         outcome: "connected",
-        message: `${entry.displayName} connected (${mode} mode${where}).${adopted.length ? ` Moved ${adopted.join(", ")} from .env into the Keychain.` : ""}`,
+        message: `${entry.displayName} connected (${how}).${adopted.length ? ` Moved ${adopted.join(", ")} from .env into the Keychain.` : ""}`,
         tier,
         envVars,
         mode,
@@ -221,13 +229,21 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
           ok: false,
           message: `Not connected (missing ${missing.join(", ")}).`,
         };
-      const ok = await check(ctx, entry, values);
-      const mode = inferMode(values[entry.auth.secret]!);
+      const mode = inferMode(values[primary]!);
+      if (!verified)
+        return {
+          service: this.id,
+          ok: true,
+          unverified: true,
+          message: `${plain.map((v) => v.name).join(", ")} stored, not verified: ${unverifiable}`,
+          mode,
+        };
+      const ok = await check(ctx, verified, values);
       return ok.ok
         ? {
             service: this.id,
             ok: true,
-            message: `${entry.auth.secret} works (${mode} mode).`,
+            message: `${verified.auth.secret} works (${mode} mode).`,
             mode,
           }
         : {
@@ -238,10 +254,11 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
     },
 
     auth(ctx) {
+      if (!verified) return null;
       const values = stored(ctx, this);
-      const secret = values[entry.auth.secret];
+      const secret = values[verified.auth.secret];
       if (!secret) return null;
-      return { headers: authHeaders(entry, values), secrets: [secret], mode: inferMode(secret) };
+      return { headers: authHeaders(verified, values), secrets: [secret], mode: inferMode(secret) };
     },
   };
 }
