@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { proxyRequest } from "../src/proxy/request.js";
@@ -168,5 +168,47 @@ describe("Clerk proxy blocklist", () => {
     ])
       await expect(proxyRequest(ctx, "clerk", "GET", path), path).rejects.toThrow(/manages keys/);
     expect((await proxyRequest(ctx, "clerk", "GET", "/v1/users?limit=1")).status).toBe(200);
+  });
+});
+
+describe("Anthropic workspace id", () => {
+  const key = "sk-ant-api03-FakeWorkspaceKeyABCDEFGHIJ";
+  const WS = "wrkspc_01FakeWorkspaceId";
+  const seen: (string | null)[] = [];
+  const anthropicApi =
+    (needsWorkspace: boolean): Route =>
+    ({ url, headers }) => {
+      if (url.host !== "api.anthropic.com") return undefined;
+      seen.push(headers.get("anthropic-workspace-id"));
+      if (needsWorkspace && headers.get("anthropic-workspace-id") !== WS)
+        return json({ error: { message: "workspace required" } }, 400);
+      return json({ data: [] });
+    };
+
+  it("is optional: never asked for, and its absence doesn't make the service incomplete", async () => {
+    const capture = new FakeCapture([key]);
+    const { ctx } = makeCtx({ capture, fetch: fakeFetch([anthropicApi(false)]).fetch });
+    expect((await getRecipe("anthropic").connect(ctx)).outcome).toBe("connected");
+    expect(capture.requests).toHaveLength(1);
+    expect((await getRecipe("anthropic").detect(ctx)).state).toBe("connected");
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("hints at the workspace id when the key is rejected, then sends it from .env", async () => {
+    const fetch = fakeFetch([anthropicApi(true)]).fetch;
+    {
+      const { ctx, keychain } = makeCtx({ capture: new FakeCapture([key]), fetch });
+      const r = await getRecipe("anthropic").connect(ctx);
+      expect(r.outcome).toBe("failed");
+      expect(r.message).toMatch(/ANTHROPIC_WORKSPACE_ID/);
+      expect(keychain.items.size).toBe(0);
+    }
+    const { ctx, root } = makeCtx({ capture: new FakeCapture([key]), fetch });
+    writeFileSync(join(root, ".env"), `ANTHROPIC_WORKSPACE_ID=${WS}\n`);
+    expect((await getRecipe("anthropic").connect(ctx)).outcome).toBe("connected");
+    expect(seen.at(-1)).toBe(WS);
+    expect((await getRecipe("anthropic").verify(ctx)).ok).toBe(true);
+    expect((await proxyRequest(ctx, "anthropic", "GET", "/v1/models")).status).toBe(200);
+    expect(seen.at(-1)).toBe(WS);
   });
 });

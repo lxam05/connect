@@ -114,7 +114,7 @@ Note: Resend has no test-mode keys. Until you verify a domain, Resend only deliv
 
 **Neon** (no paste): uses `neonctl` (`neonctl auth` once). Picks the project the same way and stores `DATABASE_URL` from `neonctl connection-string`. Verify checks the connection string's shape; Keysmith doesn't open database connections.
 
-**GitHub** (no paste with the GitHub CLI): reads the CLI's token with `gh auth token`, verifies it with `GET /user` and records the user. That token has every scope `gh` has, so Keysmith warns and suggests `keysmith connect github --force --tier capture` with a fine-grained token, which is the least-privilege option. GitHub has no test mode, so `request` is read-only, and key, secret and token endpoints are blocked.
+**GitHub** (one paste): opens the page for creating a fine-grained token, the least-privilege option, and takes it in the hidden dialog. Verified with `GET /user`, which records the user. `--tier cli` reuses the GitHub CLI's token instead (`gh auth token`); that token has every scope `gh` has, so Keysmith warns about it. GitHub has no test mode, so `request` is read-only, and key, secret and token endpoints are blocked.
 
 **Railway** (one paste): Railway only creates project tokens in the dashboard (project → Settings → Tokens). Paste one into the dialog; Keysmith verifies it with Railway's `projectToken` query and records the project and environment. Run the CLI as `keysmith run -- railway up`.
 

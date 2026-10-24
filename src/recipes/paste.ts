@@ -30,6 +30,13 @@ export function validatorFor(v: CatalogVar, label: string): (value: string) => s
 }
 
 function authHeaders(entry: VerifiedEntry, values: Values): Record<string, string> {
+  const optional: Record<string, string> = {};
+  for (const [header, name] of Object.entries(entry.optionalHeaders ?? {}))
+    if (values[name]) optional[header] = values[name];
+  return { ...baseHeaders(entry, values), ...optional };
+}
+
+function baseHeaders(entry: VerifiedEntry, values: Values): Record<string, string> {
   const a = entry.auth;
   if (a.type === "bearer") return { Authorization: `Bearer ${values[a.secret]}`, ...a.extra };
   if (a.type === "header") return { [a.name]: `${a.prefix ?? ""}${values[a.secret]}`, ...a.extra };
@@ -91,10 +98,11 @@ const DERIVERS: Record<
 
 /** Build a guided-paste Recipe from a catalog entry. */
 export function pasteRecipe(entry: CatalogEntry): Recipe {
-  const plain = entry.envVars.filter((v) => !v.derived);
+  const plain = entry.envVars.filter((v) => !v.derived && !v.optional);
   const derived = entry.envVars.filter((v) => v.derived);
   const verified = isVerified(entry) ? entry : undefined;
   const unverifiable = isVerified(entry) ? "" : entry.unverifiable;
+  const hint = verified?.rejectHint ? ` ${verified.rejectHint}` : "";
   const modeFor = (value: string): Mode =>
     entry.testPrefixes?.some((p) => value.startsWith(p)) ? "test" : "live";
   /** The value that decides the mode: the auth secret, or the first secret var. */
@@ -119,6 +127,7 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
       name: v.name,
       secret: v.secret,
       description: v.description,
+      optional: v.optional,
     })),
     hosts: verified ? [verified.host] : [],
     tiers: ["capture"],
@@ -172,12 +181,16 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
         values[v.name] = r.value;
       }
 
+      for (const v of entry.envVars.filter((e) => e.optional)) {
+        const value = env.get(v.name);
+        if (value && !isRef(value)) values[v.name] = value;
+      }
       if (verified) {
         const ok = await check(ctx, verified, values);
         if (!ok.ok)
           return failed(
             this,
-            `${entry.displayName} rejected the key (${ok.message}). Nothing was saved.`,
+            `${entry.displayName} rejected the key (${ok.message}). Nothing was saved.${hint}`,
           );
       }
 
@@ -252,7 +265,7 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
         : {
             service: this.id,
             ok: false,
-            message: `${entry.displayName} rejected the key (${ok.message}).`,
+            message: `${entry.displayName} rejected the key (${ok.message}).${hint}`,
           };
     },
 

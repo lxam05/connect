@@ -35,11 +35,12 @@ const ghSys = (signedIn = true) =>
   });
 
 describe("GitHub", () => {
-  it("reuses the GitHub CLI token, records the user and warns about its scopes", async () => {
+  it("with --tier cli, reuses the CLI token, records the user and warns about scopes", async () => {
     const sys = ghSys();
     const { ctx, root, keychain } = makeCtx({
       sys,
       fetch: fakeFetch([githubApi("gist, read:org, repo, workflow, delete_repo")]).fetch,
+      options: { tier: "cli" },
     });
     const r = await getRecipe("github").connect(ctx);
     expect(r).toMatchObject({
@@ -59,7 +60,11 @@ describe("GitHub", () => {
   });
 
   it("asks the user to sign in when the CLI isn't", async () => {
-    const { ctx, keychain } = makeCtx({ sys: ghSys(false), fetch: fakeFetch([githubApi()]).fetch });
+    const { ctx, keychain } = makeCtx({
+      sys: ghSys(false),
+      fetch: fakeFetch([githubApi()]).fetch,
+      options: { tier: "cli" },
+    });
     const r = await getRecipe("github").connect(ctx);
     expect(r.outcome).toBe("action_required");
     expect(r.humanSteps?.[0]).toMatch(/gh auth login/);
@@ -76,17 +81,19 @@ describe("GitHub", () => {
     expect(keychain.items.get("demo/github/GITHUB_TOKEN")).toBe(PAT);
   });
 
-  it("pastes instead of using the CLI with --tier capture", async () => {
+  it("pastes a fine-grained token by default, even when the CLI is signed in", async () => {
     const sys = ghSys();
     const capture = new FakeCapture([PAT]);
-    const { ctx } = makeCtx({
-      sys,
-      capture,
-      fetch: fakeFetch([githubApi()]).fetch,
-      options: { tier: "capture" },
-    });
+    const { ctx } = makeCtx({ sys, capture, fetch: fakeFetch([githubApi()]).fetch });
     expect((await getRecipe("github").connect(ctx)).tier).toBe("capture");
     expect(sys.calls).toHaveLength(0);
+  });
+
+  it("with --tier cli, asks before installing the CLI", async () => {
+    const { ctx } = makeCtx({ options: { tier: "cli" } });
+    const r = await getRecipe("github").connect(ctx);
+    expect(r.outcome).toBe("action_required");
+    expect(r.humanSteps?.[0]).toMatch(/brew install gh/);
   });
 
   it("rejects a value that isn't a GitHub token, and saves nothing on 401", async () => {

@@ -8,6 +8,8 @@ export interface EnvVarSpec {
   secret: boolean;
   /** Stored in the vault only (e.g. an admin key for rotation), never in .env. */
   vaultOnly?: boolean;
+  /** A public value the user adds to .env only when needed. Never asked for. */
+  optional?: boolean;
   description: string;
 }
 

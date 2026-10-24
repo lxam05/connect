@@ -29,6 +29,7 @@ const BROAD_SCOPES = [
   "admin:public_key",
   "admin:gpg_key",
 ];
+const INSTALL_CMD = "brew install gh";
 const API_HEADERS = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
 
 const validate = prefixValidator(PREFIXES, "a GitHub token");
@@ -71,16 +72,28 @@ function scopeWarnings(c: Check, tier: Tier): string[] {
     warnings.push(`This token can delete or administer things (scopes: ${broad.join(", ")}).`);
   if (tier === "cli")
     warnings.push(
-      `This is your GitHub CLI token${c.scopes ? ` (scopes: ${c.scopes.join(", ") || "none"})` : ""}, so the app gets everything \`gh\` can do. For least privilege, create a fine-grained token at ${TOKEN_PAGE} and run \`keysmith connect github --force --tier capture\`.`,
+      `This is your GitHub CLI token${c.scopes ? ` (scopes: ${c.scopes.join(", ") || "none"})` : ""}, so the app gets everything \`gh\` can do. For least privilege, create a fine-grained token at ${TOKEN_PAGE} and run \`keysmith connect github --force\`.`,
     );
   return warnings;
 }
 
-/** The GitHub CLI's token for github.com, read in-process. */
+/**
+ * The GitHub CLI's token for github.com, read in-process. Only with `--tier cli`: it carries
+ * every scope `gh` has, so the default is a pasted fine-grained token.
+ */
 async function cliToken(
   ctx: RecipeContext,
 ): Promise<{ token: string } | { result: ConnectResult } | null> {
-  if (ctx.options.tier === "capture" || !(await ctx.sys.which("gh"))) return null;
+  if (ctx.options.tier !== "cli") return null;
+  if (!(await ctx.sys.which("gh")))
+    return {
+      result: {
+        service: github.id,
+        outcome: "action_required",
+        message: `The GitHub CLI is not installed. Ask the user for permission, then run \`${INSTALL_CMD}\` and call connect again. (Or connect without tier "cli" to paste a fine-grained token.)`,
+        humanSteps: [`Approve installing the GitHub CLI: ${INSTALL_CMD}`],
+      },
+    };
   const r = await ctx.sys.exec("gh", ["auth", "token", "--hostname", "github.com"], {
     timeoutMs: 30_000,
   });
@@ -91,7 +104,7 @@ async function cliToken(
       service: github.id,
       outcome: "action_required",
       message:
-        'The GitHub CLI isn\'t signed in. Ask the user to run `gh auth login` in a terminal, then call connect again. (Alternative: connect with tier "capture" to paste a fine-grained token instead.)',
+        'The GitHub CLI isn\'t signed in. Ask the user to run `gh auth login` in a terminal, then call connect again. (Or connect without tier "cli" to paste a fine-grained token.)',
       humanSteps: ["Run `gh auth login` in a terminal and approve it in the browser."],
     },
   };
@@ -100,17 +113,17 @@ async function cliToken(
 export const github: Recipe = {
   id: "github",
   displayName: "GitHub",
-  support: "dedicated",
+  support: "verified-paste",
   docsUrl: "https://docs.github.com/en/rest/users/users#get-the-authenticated-user",
   verifiedWith: `GET ${HOST}/user`,
   envVars: [{ name: GITHUB_TOKEN, secret: true, description: "GitHub token" }],
   hosts: [HOST],
   // No test mode: every token is live, so the proxy refuses writes.
   modeFor: () => "live",
-  tiers: ["cli", "capture"],
+  tiers: ["capture", "cli"],
   humanSteps: [
-    "Sign in with `gh auth login`, unless the GitHub CLI is already signed in.",
-    `Without the GitHub CLI (or with --tier capture): paste a fine-grained token from ${TOKEN_PAGE} into a hidden macOS dialog.`,
+    `Create a fine-grained token at ${TOKEN_PAGE} with only the repositories and permissions the app needs, and paste it into a hidden macOS dialog.`,
+    "Or, with --tier cli, reuse the GitHub CLI's token (`gh auth login` first). It has every scope `gh` has.",
   ],
   signals: { packages: ["octokit", "@octokit/rest", "@octokit/core"] },
   rotation:

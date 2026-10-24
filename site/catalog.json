@@ -123,7 +123,7 @@
   {
     "id": "github",
     "displayName": "GitHub",
-    "support": "dedicated",
+    "support": "verified-paste",
     "envVars": [
       {
         "name": "GITHUB_TOKEN",
@@ -132,12 +132,12 @@
       }
     ],
     "tiers": [
-      "cli",
-      "capture"
+      "capture",
+      "cli"
     ],
     "humanSteps": [
-      "Sign in with `gh auth login`, unless the GitHub CLI is already signed in.",
-      "Without the GitHub CLI (or with --tier capture): paste a fine-grained token from https://github.com/settings/personal-access-tokens/new into a hidden macOS dialog."
+      "Create a fine-grained token at https://github.com/settings/personal-access-tokens/new with only the repositories and permissions the app needs, and paste it into a hidden macOS dialog.",
+      "Or, with --tier cli, reuse the GitHub CLI's token (`gh auth login` first). It has every scope `gh` has."
     ],
     "rotation": "Not automatic: run `gh auth refresh` (CLI token) or regenerate the fine-grained token, then `keysmith connect github --force`.",
     "docsUrl": "https://docs.github.com/en/rest/users/users#get-the-authenticated-user",
@@ -195,6 +195,11 @@
         "name": "ANTHROPIC_API_KEY",
         "secret": true,
         "description": "Anthropic API key"
+      },
+      {
+        "name": "ANTHROPIC_WORKSPACE_ID",
+        "secret": false,
+        "description": "Workspace id, only for keys not scoped to a workspace"
       }
     ],
     "tiers": [

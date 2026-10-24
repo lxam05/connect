@@ -14,6 +14,8 @@ export interface CatalogVar {
   pattern?: RegExp;
   /** Filled in by the recipe after the secrets verify, instead of asking the user. */
   derived?: boolean;
+  /** Public, read from .env when present, never asked for (see `optionalHeaders`). */
+  optional?: boolean;
 }
 
 export type CatalogAuth =
@@ -53,6 +55,10 @@ export interface VerifiedEntry extends BaseEntry {
   verifyPath: string;
   /** Paths that manage keys or the account; never proxied. */
   blockedPaths: RegExp[];
+  /** Headers sent only when the named optional var is set, e.g. a workspace id. */
+  optionalHeaders?: Record<string, string>;
+  /** Added to the message when the provider rejects the key. */
+  rejectHint?: string;
 }
 
 /** A key Keysmith stores and redacts but can't check. Never reported as verified. */
@@ -95,10 +101,19 @@ export const CATALOG: CatalogEntry[] = [
         prefixes: ["sk-ant-"],
         description: "Anthropic API key",
       },
+      {
+        name: "ANTHROPIC_WORKSPACE_ID",
+        secret: false,
+        optional: true,
+        description: "Workspace id, only for keys not scoped to a workspace",
+      },
     ],
     keyPage: "https://platform.claude.com/settings/keys",
     docsUrl: "https://platform.claude.com/docs/en/api/overview#authentication",
     host: "api.anthropic.com",
+    optionalHeaders: { "anthropic-workspace-id": "ANTHROPIC_WORKSPACE_ID" },
+    rejectHint:
+      "Keys that aren't scoped to a workspace need one: add ANTHROPIC_WORKSPACE_ID=wrkspc_… to .env and connect again.",
     auth: {
       type: "bearer",
       secret: "ANTHROPIC_API_KEY",

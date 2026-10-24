@@ -600,7 +600,7 @@ const BLURBS = {
   resend: "Transactional email. Paste one key and Keysmith creates a sending-only key from it.",
   supabase: "Reads the project's keys through the Supabase CLI.",
   neon: "Stores the database connection string from the Neon CLI.",
-  github: "Reuses the GitHub CLI's token, or a fine-grained token you paste. Reads only.",
+  github: "Paste a fine-grained token with only the access your app needs. Reads only.",
   railway: "Paste a project token once. Keysmith checks which project and environment it's for.",
   custom: "Any other secret, pasted into the hidden dialog and stored unverified.",
 };

@@ -40,7 +40,7 @@ export function detectFromState(ctx: RecipeContext, recipe: Recipe): Status {
       }
       primary ??= spec.vaultOnly ? undefined : ctx.vault.meta(ref);
       if (!spec.vaultOnly && env.get(spec.name) !== ref) missing.push(spec.name);
-    } else if (!env.get(spec.name)) {
+    } else if (!spec.optional && !env.get(spec.name)) {
       missing.push(spec.name);
     }
   }
