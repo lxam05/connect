@@ -120,9 +120,9 @@ Note: Resend has no test-mode keys. Until you verify a domain, Resend only deliv
 
 **Vercel** (no paste, import): if the folder is linked (`vercel link`), setup runs `vercel env pull` for the development environment into a private temp file, routes each var to the recipe that owns it (or to custom secrets), and deletes the file.
 
-**Guided paste** (one dialog each, verified against a harmless read endpoint, usable through `request`): OpenAI, Anthropic, Groq, Clerk, SendGrid, Twilio, Postmark and Cloudflare. Cloudflare API tokens can't be created from a CLI login, so you paste the token once; `CLOUDFLARE_ACCOUNT_ID` is filled in from it.
+**Guided paste** (one dialog each, verified against a harmless read endpoint, usable through `request`): OpenAI, Anthropic, Groq, Mistral, DeepSeek, Cohere, Cerebras, Replicate, ElevenLabs, Google Gemini, Pinecone, Deepgram, AssemblyAI, Clerk, SendGrid, Twilio, Postmark and Cloudflare. Cloudflare API tokens can't be created from a CLI login, so you paste the token once; `CLOUDFLARE_ACCOUNT_ID` is filled in from it.
 
-**Catalog only** (one dialog each, stored and redacted but **not verified**, because there's no safe endpoint to check against): Upstash Redis. `verify` and `setup` report these as "stored, not verified".
+**Catalog only** (one dialog each, stored and redacted but **not verified**, because there's no safe endpoint to check against): Upstash Redis, xAI and Together AI. `verify` and `setup` report these as "stored, not verified".
 
 Every service has a support level (`dedicated`, `verified-paste`, `catalog-only` or `custom`), shown by `keysmith list`. How to add one: [docs/provider-expansion.md](docs/provider-expansion.md).
 

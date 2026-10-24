@@ -383,6 +383,270 @@
     "unverifiable": "Each database has its own REST host, which Keysmith can't verify against yet."
   },
   {
+    "id": "mistral",
+    "displayName": "Mistral",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "MISTRAL_API_KEY",
+        "secret": true,
+        "description": "Mistral API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy MISTRAL_API_KEY from https://console.mistral.ai into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.mistral.ai, then run `keysmith connect mistral` again after removing the old one.",
+    "docsUrl": "https://docs.mistral.ai/api/endpoint/models",
+    "verifiedWith": "GET api.mistral.ai/v1/models",
+    "keyPage": "https://console.mistral.ai"
+  },
+  {
+    "id": "deepseek",
+    "displayName": "DeepSeek",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "DEEPSEEK_API_KEY",
+        "secret": true,
+        "description": "DeepSeek API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy DEEPSEEK_API_KEY from https://platform.deepseek.com/api_keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://platform.deepseek.com/api_keys, then run `keysmith connect deepseek` again after removing the old one.",
+    "docsUrl": "https://api-docs.deepseek.com/api/list-models",
+    "verifiedWith": "GET api.deepseek.com/models",
+    "keyPage": "https://platform.deepseek.com/api_keys"
+  },
+  {
+    "id": "cohere",
+    "displayName": "Cohere",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "CO_API_KEY",
+        "secret": true,
+        "description": "Cohere API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy CO_API_KEY from https://dashboard.cohere.com/api-keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://dashboard.cohere.com/api-keys, then run `keysmith connect cohere` again after removing the old one.",
+    "docsUrl": "https://docs.cohere.com/reference/list-models",
+    "verifiedWith": "GET api.cohere.com/v1/models",
+    "keyPage": "https://dashboard.cohere.com/api-keys"
+  },
+  {
+    "id": "cerebras",
+    "displayName": "Cerebras",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "CEREBRAS_API_KEY",
+        "secret": true,
+        "description": "Cerebras API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy CEREBRAS_API_KEY from https://cloud.cerebras.ai into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://cloud.cerebras.ai, then run `keysmith connect cerebras` again after removing the old one.",
+    "docsUrl": "https://inference-docs.cerebras.ai/api-reference/models",
+    "verifiedWith": "GET api.cerebras.ai/v1/models",
+    "keyPage": "https://cloud.cerebras.ai"
+  },
+  {
+    "id": "replicate",
+    "displayName": "Replicate",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "REPLICATE_API_TOKEN",
+        "secret": true,
+        "description": "Replicate API token"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy REPLICATE_API_TOKEN from https://replicate.com/account/api-tokens into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://replicate.com/account/api-tokens, then run `keysmith connect replicate` again after removing the old one.",
+    "docsUrl": "https://replicate.com/docs/reference/http#account.get",
+    "verifiedWith": "GET api.replicate.com/v1/account",
+    "keyPage": "https://replicate.com/account/api-tokens"
+  },
+  {
+    "id": "elevenlabs",
+    "displayName": "ElevenLabs",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "ELEVENLABS_API_KEY",
+        "secret": true,
+        "description": "ElevenLabs API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy ELEVENLABS_API_KEY from https://elevenlabs.io/app/settings/api-keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://elevenlabs.io/app/settings/api-keys, then run `keysmith connect elevenlabs` again after removing the old one.",
+    "docsUrl": "https://elevenlabs.io/docs/api-reference/user/get",
+    "verifiedWith": "GET api.elevenlabs.io/v1/user",
+    "keyPage": "https://elevenlabs.io/app/settings/api-keys"
+  },
+  {
+    "id": "gemini",
+    "displayName": "Google Gemini",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "GEMINI_API_KEY",
+        "secret": true,
+        "description": "Gemini API key (the SDKs prefer GOOGLE_API_KEY when both are set)"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy GEMINI_API_KEY from https://aistudio.google.com/apikey into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://aistudio.google.com/apikey, then run `keysmith connect gemini` again after removing the old one.",
+    "docsUrl": "https://ai.google.dev/api/models",
+    "verifiedWith": "GET generativelanguage.googleapis.com/v1beta/models",
+    "keyPage": "https://aistudio.google.com/apikey"
+  },
+  {
+    "id": "pinecone",
+    "displayName": "Pinecone",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "PINECONE_API_KEY",
+        "secret": true,
+        "description": "Pinecone API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy PINECONE_API_KEY from https://app.pinecone.io/organizations/-/projects into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://app.pinecone.io/organizations/-/projects, then run `keysmith connect pinecone` again after removing the old one.",
+    "docsUrl": "https://docs.pinecone.io/reference/api/latest/control-plane/list_indexes",
+    "verifiedWith": "GET api.pinecone.io/indexes",
+    "keyPage": "https://app.pinecone.io/organizations/-/projects"
+  },
+  {
+    "id": "deepgram",
+    "displayName": "Deepgram",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "DEEPGRAM_API_KEY",
+        "secret": true,
+        "description": "Deepgram API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy DEEPGRAM_API_KEY from https://console.deepgram.com into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.deepgram.com, then run `keysmith connect deepgram` again after removing the old one.",
+    "docsUrl": "https://developers.deepgram.com/reference/manage/projects/list",
+    "verifiedWith": "GET api.deepgram.com/v1/projects",
+    "keyPage": "https://console.deepgram.com"
+  },
+  {
+    "id": "assemblyai",
+    "displayName": "AssemblyAI",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "ASSEMBLYAI_API_KEY",
+        "secret": true,
+        "description": "AssemblyAI API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy ASSEMBLYAI_API_KEY from https://www.assemblyai.com/dashboard/home into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://www.assemblyai.com/dashboard/home, then run `keysmith connect assemblyai` again after removing the old one.",
+    "docsUrl": "https://www.assemblyai.com/docs/api-reference/transcripts/list",
+    "verifiedWith": "GET api.assemblyai.com/v2/transcript",
+    "keyPage": "https://www.assemblyai.com/dashboard/home"
+  },
+  {
+    "id": "xai",
+    "displayName": "xAI",
+    "support": "catalog-only",
+    "envVars": [
+      {
+        "name": "XAI_API_KEY",
+        "secret": true,
+        "description": "xAI API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy XAI_API_KEY from https://console.x.ai/team/default/api-keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.x.ai/team/default/api-keys, then run `keysmith connect xai` again after removing the old one.",
+    "docsUrl": "https://docs.x.ai/docs/tutorial",
+    "keyPage": "https://console.x.ai/team/default/api-keys",
+    "unverifiable": "xAI's docs list no free, read-only endpoint to check a key with."
+  },
+  {
+    "id": "together",
+    "displayName": "Together AI",
+    "support": "catalog-only",
+    "envVars": [
+      {
+        "name": "TOGETHER_API_KEY",
+        "secret": true,
+        "description": "Together AI API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy TOGETHER_API_KEY from https://api.together.ai/settings/projects/~current/api-keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://api.together.ai/settings/projects/~current/api-keys, then run `keysmith connect together` again after removing the old one.",
+    "docsUrl": "https://docs.together.ai/docs/api-keys-authentication",
+    "keyPage": "https://api.together.ai/settings/projects/~current/api-keys",
+    "unverifiable": "Together's docs list no free, read-only endpoint to check a key with."
+  },
+  {
     "id": "custom",
     "displayName": "Other secrets",
     "support": "custom",

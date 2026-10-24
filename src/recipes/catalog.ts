@@ -18,7 +18,14 @@ export interface CatalogVar {
 
 export type CatalogAuth =
   | { type: "bearer"; secret: string; extra?: Record<string, string> }
-  | { type: "header"; name: string; secret: string; extra?: Record<string, string> }
+  | {
+      type: "header";
+      name: string;
+      secret: string;
+      /** Put before the value, e.g. "Token " for `Authorization: Token <key>`. */
+      prefix?: string;
+      extra?: Record<string, string>;
+    }
   | { type: "basic"; user: string; secret: string };
 
 interface BaseEntry {
@@ -236,5 +243,156 @@ export const CATALOG: CatalogEntry[] = [
     keyPage: "https://console.upstash.com/",
     docsUrl: "https://upstash.com/docs/redis/sdks/ts/getstarted",
     unverifiable: "Each database has its own REST host, which Keysmith can't verify against yet.",
+  },
+  // AI providers. Each verify call is a documented, free, read-only GET.
+  {
+    id: "mistral",
+    displayName: "Mistral",
+    packages: ["@mistralai/mistralai", "@ai-sdk/mistral"],
+    envVars: [{ name: "MISTRAL_API_KEY", secret: true, description: "Mistral API key" }],
+    keyPage: "https://console.mistral.ai",
+    docsUrl: "https://docs.mistral.ai/api/endpoint/models",
+    host: "api.mistral.ai",
+    auth: { type: "bearer", secret: "MISTRAL_API_KEY" },
+    verifyPath: "/v1/models",
+    blockedPaths: [],
+  },
+  {
+    id: "deepseek",
+    displayName: "DeepSeek",
+    packages: ["@ai-sdk/deepseek"],
+    envVars: [{ name: "DEEPSEEK_API_KEY", secret: true, description: "DeepSeek API key" }],
+    keyPage: "https://platform.deepseek.com/api_keys",
+    docsUrl: "https://api-docs.deepseek.com/api/list-models",
+    host: "api.deepseek.com",
+    auth: { type: "bearer", secret: "DEEPSEEK_API_KEY" },
+    verifyPath: "/models",
+    blockedPaths: [],
+  },
+  {
+    id: "cohere",
+    displayName: "Cohere",
+    packages: ["cohere-ai"],
+    envVars: [{ name: "CO_API_KEY", secret: true, description: "Cohere API key" }],
+    keyPage: "https://dashboard.cohere.com/api-keys",
+    docsUrl: "https://docs.cohere.com/reference/list-models",
+    host: "api.cohere.com",
+    auth: { type: "bearer", secret: "CO_API_KEY" },
+    verifyPath: "/v1/models",
+    blockedPaths: [],
+  },
+  {
+    id: "cerebras",
+    displayName: "Cerebras",
+    packages: ["@cerebras/cerebras_cloud_sdk"],
+    envVars: [{ name: "CEREBRAS_API_KEY", secret: true, description: "Cerebras API key" }],
+    keyPage: "https://cloud.cerebras.ai",
+    docsUrl: "https://inference-docs.cerebras.ai/api-reference/models",
+    host: "api.cerebras.ai",
+    auth: { type: "bearer", secret: "CEREBRAS_API_KEY" },
+    verifyPath: "/v1/models",
+    blockedPaths: [],
+  },
+  {
+    id: "replicate",
+    displayName: "Replicate",
+    packages: ["replicate"],
+    envVars: [{ name: "REPLICATE_API_TOKEN", secret: true, description: "Replicate API token" }],
+    keyPage: "https://replicate.com/account/api-tokens",
+    docsUrl: "https://replicate.com/docs/reference/http#account.get",
+    host: "api.replicate.com",
+    auth: { type: "bearer", secret: "REPLICATE_API_TOKEN" },
+    verifyPath: "/v1/account",
+    blockedPaths: [],
+  },
+  {
+    id: "elevenlabs",
+    displayName: "ElevenLabs",
+    packages: ["@elevenlabs/elevenlabs-js"],
+    envVars: [{ name: "ELEVENLABS_API_KEY", secret: true, description: "ElevenLabs API key" }],
+    keyPage: "https://elevenlabs.io/app/settings/api-keys",
+    docsUrl: "https://elevenlabs.io/docs/api-reference/user/get",
+    host: "api.elevenlabs.io",
+    auth: { type: "header", name: "xi-api-key", secret: "ELEVENLABS_API_KEY" },
+    verifyPath: "/v1/user",
+    blockedPaths: [/\/(api-keys|service-accounts)\b/],
+  },
+  {
+    id: "gemini",
+    displayName: "Google Gemini",
+    packages: ["@google/genai"],
+    envVars: [
+      {
+        name: "GEMINI_API_KEY",
+        secret: true,
+        description: "Gemini API key (the SDKs prefer GOOGLE_API_KEY when both are set)",
+      },
+    ],
+    keyPage: "https://aistudio.google.com/apikey",
+    docsUrl: "https://ai.google.dev/api/models",
+    host: "generativelanguage.googleapis.com",
+    auth: { type: "header", name: "x-goog-api-key", secret: "GEMINI_API_KEY" },
+    verifyPath: "/v1beta/models",
+    blockedPaths: [],
+  },
+  {
+    id: "pinecone",
+    displayName: "Pinecone",
+    packages: ["@pinecone-database/pinecone"],
+    envVars: [{ name: "PINECONE_API_KEY", secret: true, description: "Pinecone API key" }],
+    keyPage: "https://app.pinecone.io/organizations/-/projects",
+    docsUrl: "https://docs.pinecone.io/reference/api/latest/control-plane/list_indexes",
+    host: "api.pinecone.io",
+    auth: {
+      type: "header",
+      name: "Api-Key",
+      secret: "PINECONE_API_KEY",
+      extra: { "X-Pinecone-Api-Version": "2026-07" },
+    },
+    verifyPath: "/indexes",
+    blockedPaths: [/^\/admin\b/],
+  },
+  {
+    id: "deepgram",
+    displayName: "Deepgram",
+    packages: ["@deepgram/sdk"],
+    envVars: [{ name: "DEEPGRAM_API_KEY", secret: true, description: "Deepgram API key" }],
+    keyPage: "https://console.deepgram.com",
+    docsUrl: "https://developers.deepgram.com/reference/manage/projects/list",
+    host: "api.deepgram.com",
+    auth: { type: "header", name: "Authorization", prefix: "Token ", secret: "DEEPGRAM_API_KEY" },
+    verifyPath: "/v1/projects",
+    blockedPaths: [/\/keys\b/],
+  },
+  {
+    id: "assemblyai",
+    displayName: "AssemblyAI",
+    packages: ["assemblyai"],
+    envVars: [{ name: "ASSEMBLYAI_API_KEY", secret: true, description: "AssemblyAI API key" }],
+    keyPage: "https://www.assemblyai.com/dashboard/home",
+    docsUrl: "https://www.assemblyai.com/docs/api-reference/transcripts/list",
+    host: "api.assemblyai.com",
+    // The raw key, with no "Bearer".
+    auth: { type: "header", name: "Authorization", secret: "ASSEMBLYAI_API_KEY" },
+    verifyPath: "/v2/transcript",
+    blockedPaths: [],
+  },
+  {
+    id: "xai",
+    displayName: "xAI",
+    packages: ["@ai-sdk/xai"],
+    envVars: [{ name: "XAI_API_KEY", secret: true, description: "xAI API key" }],
+    keyPage: "https://console.x.ai/team/default/api-keys",
+    docsUrl: "https://docs.x.ai/docs/tutorial",
+    unverifiable: "xAI's docs list no free, read-only endpoint to check a key with.",
+  },
+  {
+    id: "together",
+    displayName: "Together AI",
+    packages: ["together-ai"],
+    envVars: [{ name: "TOGETHER_API_KEY", secret: true, description: "Together AI API key" }],
+    keyPage: "https://api.together.ai/settings/projects/~current/api-keys",
+    docsUrl: "https://docs.together.ai/docs/api-keys-authentication",
+    unverifiable: "Together's docs list no free, read-only endpoint to check a key with.",
   },
 ];
