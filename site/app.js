@@ -79,6 +79,28 @@ RESEND_API_KEY=keysmith://myapp/resend/RESEND_API_KEY`;
 
 const CLI = [
   {
+    cmd: "setup",
+    desc: "Gives the project every key it needs: scan, import plain-text secrets, connect, route the dev script through keysmith, verify.",
+    out: `$ keysmith setup
+• Moved into the Keychain: FOO_API_KEY
+✓ Stripe · "Gap Detector sandbox" (acct_1T4s…): ready
+✓ OpenAI: ready
+✓ Other secrets: ready
+• dev script: keysmith run -- next dev
+Done: 3 service(s) connected and verified.`,
+  },
+  {
+    cmd: "scan",
+    desc: "Shows which services and secrets the project needs, without changing anything.",
+    out: `$ keysmith scan
+project shop (/Users/you/shop)
+  · Stripe (not_connected)
+      dependency stripe; process.env.STRIPE_SECRET_KEY in lib/stripe.ts
+  · OpenAI (not_connected)
+      process.env.OPENAI_API_KEY in lib/ai.ts
+Run \`keysmith setup\` to connect everything.`,
+  },
+  {
     cmd: "list",
     desc: "Services Keysmith can connect, and the steps each one may need from you.",
     out: `$ keysmith list
@@ -168,6 +190,11 @@ const DENY = [
   "Bash(cat ~/.config/stripe/*)",
   "Bash(stripe config --list*)",
   "Bash(stripe listen*)",
+  "Bash(supabase projects api-keys*)",
+  "Bash(vercel env pull*)",
+  "Bash(neonctl connection-string*)",
+  "Read(~/.supabase/**)",
+  "Read(~/.config/neonctl/**)",
 ];
 
 /* ---------- docs ---------- */
@@ -245,7 +272,7 @@ ${[
 </tbody></table>
 <p>There is deliberately no <code>get</code> or <code>reveal</code> command.</p>
 <h2 id="examples">Examples</h2>
-${CLI.slice(1, 4)
+${CLI.filter((c) => ["setup", "status", "verify"].includes(c.cmd))
   .map((c) => codeBlock(c.out.replace(/^\$ /, ""), { title: `keysmith ${c.cmd}` }))
   .join("")}`,
       },
@@ -479,7 +506,7 @@ function homePage() {
     </div>
     <div class="term" id="cli-term">
       <div class="term-list" role="tablist" aria-label="Commands">
-        ${CLI.map((c, i) => `<button role="tab" aria-selected="${i === 1}" data-i="${i}">keysmith ${c.cmd}</button>`).join("")}
+        ${CLI.map((c, i) => `<button role="tab" aria-selected="${i === 0}" data-i="${i}">keysmith ${c.cmd}</button>`).join("")}
       </div>
       <div class="term-out" role="tabpanel"></div>
     </div>
@@ -539,6 +566,15 @@ function homePage() {
 </section>`;
 }
 
+function infoCard(id, name, logo, badge, desc, vars) {
+  return `
+<a class="svc" href="https://github.com/lxam05/connect#how-each-service-connects" rel="noopener">
+  <div class="svc-top"><span class="logo soon">${logo}</span><span class="badge live">${badge}</span></div>
+  <h3>${name}</h3><p>${desc}</p>
+  <div class="vars">${vars.map((v) => `<code>${v}</code>`).join("")}</div>
+</a>`;
+}
+
 function integrationsPage() {
   const svcCard = (id, name, logo, badge, desc, vars) => `
 <a class="svc" href="#/integrations/${id}">
@@ -555,6 +591,10 @@ function integrationsPage() {
   <div class="cards">
     ${svcCard("stripe", "Stripe", "S", "Available", "Payments in test mode. Sign in with the Stripe CLI and approve a pairing code.", ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY"])}
     ${svcCard("resend", "Resend", "R", "Available", "Transactional email. Paste one key and Keysmith creates a sending-only key from it.", ["RESEND_API_KEY"])}
+    ${infoCard("supabase", "Supabase", "S", "No paste", "Reads the project's keys through the Supabase CLI. The service role key goes to the Keychain.", ["SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_URL"])}
+    ${infoCard("neon", "Neon", "N", "No paste", "Stores the database connection string from the Neon CLI.", ["DATABASE_URL"])}
+    ${infoCard("vercel", "Vercel", "▲", "Import", "Pulls a linked project's development env vars into the Keychain and deletes the temp file.", ["any env var"])}
+    ${infoCard("paste", "OpenAI, Anthropic, Clerk & more", "+", "One paste", "Guided paste with a key check for OpenAI, Anthropic, Clerk, SendGrid, Twilio, Postmark and Cloudflare.", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"])}
     <a class="svc" href="#/docs/adding-a-provider">
       <div class="svc-top"><span class="logo soon">+</span><span class="badge">Open source</span></div>
       <h3>Add a provider</h3><p>Write a recipe with detect, connect, verify and rotate, then register it.</p>
@@ -870,7 +910,7 @@ function initCliTerm() {
     show(n);
     e.preventDefault();
   });
-  show(1);
+  show(0);
 }
 
 /* ============================================================

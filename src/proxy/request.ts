@@ -30,7 +30,8 @@ export async function proxyRequest(
   const recipe = getRecipe(service);
   if (!path.startsWith("/") || path.startsWith("//"))
     throw new ProxyError("path must start with a single '/'");
-  const host = recipe.hosts[0]!;
+  const host = recipe.hosts[0];
+  if (!host) throw new ProxyError(`${service} has no API Keysmith can call.`);
   const url = new URL(path, `https://${host}`);
   if (url.protocol !== "https:" || !recipe.hosts.includes(url.host)) {
     throw new ProxyError(`host ${url.host} is not allowed for ${service}`);

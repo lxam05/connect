@@ -20,6 +20,11 @@ export const RECOMMENDED_DENY = [
   // Bare `stripe listen` prints the webhook signing secret. Agents run it through
   // `keysmith run -- stripe listen …`, which redacts it.
   "Bash(stripe listen*)",
+  "Bash(supabase projects api-keys*)",
+  "Bash(vercel env pull*)",
+  "Bash(neonctl connection-string*)",
+  "Read(~/.supabase/**)",
+  "Read(~/.config/neonctl/**)",
 ];
 
 const WHY_DENY =

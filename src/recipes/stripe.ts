@@ -357,6 +357,9 @@ export const stripe: Recipe = {
     `If the Stripe CLI isn't installed, the user must approve installing it: ${INSTALL_CMD}`,
   ],
   blockedPaths: [/^\/v\d+\/(api_keys|iam)\b/],
+  signals: { packages: ["stripe", "@stripe/stripe-js", "@stripe/react-stripe-js"] },
+  rotation:
+    "Only for keys from the Stripe CLI: picks up the newer key after `stripe login`. A key pasted from the dashboard must be rolled there, then reconnected with `keysmith connect stripe --tier capture --force`.",
 
   async detect(ctx) {
     return detectFromState(ctx, this);
@@ -521,7 +524,7 @@ export const stripe: Recipe = {
     return {
       service: this.id,
       outcome: "connected",
-      message: "Stripe key rotated ✓ Restart running processes to pick it up.",
+      message: "Stripe key rotated. Restart running processes to pick it up.",
       tier: "cli",
       envVars: [SECRET],
       expires: keys.expires,

@@ -35,10 +35,10 @@ const DIALOG_SCRIPT = [
   "end run",
 ];
 
-function showDialog(
-  message: string,
-  title: string,
-): Promise<{ canceled: boolean; value: string; error?: string }> {
+export type DialogResult = { canceled: boolean; value: string; error?: string };
+export type ShowDialog = (message: string, title: string) => Promise<DialogResult>;
+
+function showDialog(message: string, title: string): Promise<DialogResult> {
   return new Promise((resolve) => {
     execFile(
       "/usr/bin/osascript",
@@ -59,19 +59,27 @@ function showDialog(
 
 /** Native macOS dialog with hidden input. Dialog → this process → Keychain. */
 export class DialogCapture implements SecretCapture {
-  constructor(private readonly sys: System) {}
+  constructor(
+    private readonly sys: System,
+    private readonly dialog: ShowDialog = showDialog,
+    private readonly platform: NodeJS.Platform = process.platform,
+  ) {}
 
   async capture(req: CaptureRequest): Promise<CaptureResult> {
-    if (process.platform !== "darwin") {
+    if (this.platform !== "darwin") {
       return { ok: false, reason: "unavailable", message: "Secure capture needs macOS." };
     }
     if (req.url) await this.sys.open(req.url);
     const attempts = req.attempts ?? 3;
     let message = req.message;
     for (let i = 0; i < attempts; i++) {
-      const r = await showDialog(message, req.title);
+      const r = await this.dialog(message, req.title);
       if (r.canceled)
-        return { ok: false, reason: "canceled", message: "The user canceled the dialog." };
+        return {
+          ok: false,
+          reason: "canceled",
+          message: "The user canceled the dialog. Nothing was saved.",
+        };
       if (r.error)
         return { ok: false, reason: "unavailable", message: `Dialog failed: ${r.error}` };
       const value = r.value.trim();
@@ -79,7 +87,11 @@ export class DialogCapture implements SecretCapture {
       if (!problem) return { ok: true, value };
       message = `${problem}\n\n${req.message}`;
     }
-    return { ok: false, reason: "invalid", message: "No valid value was entered." };
+    return {
+      ok: false,
+      reason: "invalid",
+      message: `No valid value was entered after ${attempts} tries. Nothing was saved, and your current key (if any) is unchanged.`,
+    };
   }
 }
 

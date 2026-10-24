@@ -6,7 +6,9 @@ import { type Method, proxyRequest } from "../proxy/request.js";
 import type { ConnectOptions, RecipeContext } from "../recipes/types.js";
 import * as svc from "../service.js";
 
-export const INSTRUCTIONS = `Keysmith connects third-party services (Stripe, Resend) to this project without you ever seeing a secret.
+export const INSTRUCTIONS = `Keysmith gives this project the API keys it needs (Stripe, Resend, Supabase, Neon, OpenAI, Anthropic, Clerk, and any other secret) without you ever seeing a secret.
+
+Start with setup: it scans the project, moves plain-text secrets into the Keychain, imports Vercel env vars when linked, connects every needed service, routes the dev script through keysmith and verifies. Call it again after the user completes the humanSteps it returns. Use scan to look without changing anything.
 
 Rules:
 - Never try to read secret values: not from the Keychain, ~/.keysmith, ~/.config/stripe, ~/.config/resend, or by printing env vars. No tool here returns them, by design.
@@ -14,7 +16,10 @@ Rules:
 - When connect returns outcome "action_required", tell the user exactly what humanSteps say (e.g. approve a pairing code in the browser, paste a key into a macOS dialog), wait for them, then call connect again.
 - Never install software (e.g. the Stripe CLI) without asking the user first.
 - rotate needs the user's explicit confirmation.
-- Use request() to call a provider API without holding the key. Responses are redacted.`;
+- Use request() to call a provider API without holding the key. Responses are redacted.
+- Never ask the user to paste a key into .env, a file or this chat. For a service Keysmith has no recipe for, call add_secret: the user pastes into a hidden macOS dialog.
+- Run webhook forwarders and other commands that print secrets through \`keysmith run -- <cmd>\` (e.g. \`keysmith run -- stripe listen --forward-to …\`), so their output is redacted.
+- Before telling the user the work is done, check the account names Keysmith reports and point out any warning.`;
 
 type Json = Record<string, unknown> | unknown[];
 
@@ -58,11 +63,75 @@ export function buildServer(
           .describe(
             '"capture" skips CLIs and asks the user to paste a key into a hidden macOS dialog',
           ),
+        project: z
+          .string()
+          .optional()
+          .describe("Provider project or account id, when connect returned a list to choose from"),
       },
     },
-    async ({ service, tier }) => {
+    async ({ service, tier, project }) => {
       try {
-        return result({ ...(await svc.connect(makeCtx({ tier }), service)) });
+        return result({ ...(await svc.connect(makeCtx({ tier, project }), service)) });
+      } catch (e) {
+        return errorResult(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "scan",
+    {
+      description:
+        "Work out which API keys this project needs: services from dependencies and env var references, secrets with no recipe, plain-text secrets in env files. Names and states only. Changes nothing.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      try {
+        return result({ ...(await svc.scan(makeCtx())) });
+      } catch (e) {
+        return errorResult(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "setup",
+    {
+      description:
+        "Give the project every API key it needs, in one call: scan, move plain-text secrets into the Keychain, import Vercel env vars if linked, connect each needed service, change the dev script to `keysmith run -- …`, and verify. Returns per-service outcomes and the humanSteps still needed; call again after the user does them. Returns no values.",
+      inputSchema: {
+        devScript: z
+          .boolean()
+          .optional()
+          .describe("Set false to leave package.json's dev script alone"),
+      },
+    },
+    async ({ devScript }) => {
+      try {
+        return result({ ...(await svc.setup(makeCtx(), { devScript })) });
+      } catch (e) {
+        return errorResult(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "add_secret",
+    {
+      description:
+        "Store a secret for a service Keysmith has no recipe for. The user pastes it into a hidden macOS dialog; .env gets a keysmith:// placeholder. Use this instead of asking the user to paste a key anywhere else.",
+      inputSchema: {
+        name: z.string().describe("Env var name, e.g. FOO_API_KEY"),
+        url: z
+          .string()
+          .url()
+          .optional()
+          .describe("Page to open first, where the user creates the key"),
+      },
+    },
+    async ({ name, url }) => {
+      try {
+        return result({ ...(await svc.addSecret(makeCtx(), [name], { url })) });
       } catch (e) {
         return errorResult(e);
       }
@@ -106,7 +175,7 @@ export function buildServer(
     "rotate",
     {
       description:
-        "Replace a service's key with a new one and revoke the old one. Requires the user's explicit confirmation: only pass confirm=true after the user has said yes in chat.",
+        "Replace a service's key and revoke the old one, where the service supports it. What rotate does differs per service: check the `rotation` field from list_services before describing it to the user. Requires the user's explicit confirmation: only pass confirm=true after the user has said yes in chat.",
       inputSchema: {
         service,
         confirm: z

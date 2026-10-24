@@ -1,0 +1,15 @@
+{
+  "name": "keysmith",
+  "owner": { "name": "Liam O'Connor" },
+  "metadata": {
+    "description": "Keysmith: secret-free API key setup for coding agents."
+  },
+  "plugins": [
+    {
+      "name": "keysmith",
+      "source": "./plugin",
+      "description": "/keysmith gets every API key your project needs into the macOS Keychain, with placeholders in .env.",
+      "version": "0.1.0"
+    }
+  ]
+}

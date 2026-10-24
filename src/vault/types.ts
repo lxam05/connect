@@ -1,7 +1,7 @@
 export type Mode = "test" | "live";
 
 /** Which connection path produced a secret. */
-export type Tier = "provisioning-api" | "cli" | "oauth" | "capture" | "derived";
+export type Tier = "provisioning-api" | "cli" | "oauth" | "capture" | "derived" | "imported";
 
 export interface SecretMeta {
   ref: string;

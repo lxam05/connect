@@ -7,6 +7,8 @@ import { accountLabel } from "./recipes/common.js";
 import { runMcpServer } from "./mcp/server.js";
 import type { ConnectResult, ConnectOptions } from "./recipes/types.js";
 import { MissingSecretError, runWithSecrets } from "./runner.js";
+import { describeSetupService } from "./setup.js";
+import { runGuard } from "./guard.js";
 import * as svc from "./service.js";
 import { NativeKeychain } from "./vault/keychain.js";
 
@@ -57,24 +59,96 @@ program
   .command("connect")
   .argument("<service...>", "service id(s), e.g. stripe resend")
   .option("--tier <tier>", "auto | cli | capture", "auto")
-  .option("--force", "replace an existing Stripe connection, e.g. to switch accounts")
+  .option("--force", "replace an existing connection, e.g. to switch accounts")
+  .option("--project <id>", "provider project or account to use when there are several")
   .description("connect services to this project")
-  .action(async (services: string[], opts: { tier: ConnectOptions["tier"]; force?: boolean }) => {
-    for (const s of services)
-      printResult(await svc.connect(cliCtx({ tier: opts.tier, force: opts.force }), s));
+  .action(
+    async (
+      services: string[],
+      opts: { tier: ConnectOptions["tier"]; force?: boolean; project?: string },
+    ) => {
+      for (const s of services)
+        printResult(
+          await svc.connect(
+            cliCtx({ tier: opts.tier, force: opts.force, project: opts.project }),
+            s,
+          ),
+        );
+    },
+  );
+
+program
+  .command("scan")
+  .description("work out which API keys this project needs (no changes)")
+  .action(async () => {
+    const r = await svc.scan(cliCtx());
+    if (json()) return log.out(JSON.stringify(r, null, 2));
+    log.out(`project ${r.project} (${r.root})`);
+    if (!r.services.length && !r.unmatched.length)
+      log.out("  No API keys needed that Keysmith can see.");
+    for (const s of r.services) {
+      const where = s.account ? ` · ${accountLabel(s.account, s.accountName)}` : "";
+      log.out(`  ${s.state === "connected" ? "✓" : "·"} ${s.displayName} (${s.state}${where})`);
+      log.out(`      ${s.reasons.join("; ")}`);
+    }
+    for (const u of r.unmatched)
+      log.out(`  ${u.stored ? "✓" : "·"} ${u.name} (no recipe: stored as a custom secret)`);
+    if (r.plaintext.length)
+      log.out(
+        `  ! Plain-text secrets in env files: ${r.plaintext.join(", ")} (setup moves them to the Keychain)`,
+      );
+    if (r.vercel) log.out("  · Linked to Vercel: setup imports its development env vars");
+    if (r.devScript.present && !r.devScript.usesKeysmith)
+      log.out("  · The dev script doesn't run through keysmith yet (setup fixes this)");
+    if (r.truncated) log.out("  note: stopped scanning after 5,000 source files");
+    log.out("Run `keysmith setup` to connect everything.");
+  });
+
+program
+  .command("setup")
+  .option("--no-dev-script", "leave package.json's dev script alone")
+  .option("--project <id>", "provider project or account to use when there are several")
+  .description("give this project every API key it needs: scan, connect, verify")
+  .action(async (opts: { devScript: boolean; project?: string }) => {
+    const r = await svc.setup(cliCtx({ project: opts.project }), { devScript: opts.devScript });
+    if (json()) return log.out(JSON.stringify(r, null, 2));
+    if (r.imported.length) log.out(`• Moved into the Keychain: ${r.imported.join(", ")}`);
+    for (const s of r.services) {
+      log.out(describeSetupService(s));
+      for (const w of s.warnings ?? []) log.out(`  note: ${w}`);
+    }
+    if (r.devScript.changed) log.out(`• dev script: ${r.devScript.command}`);
+    if (r.devScript.note) log.out(`• ${r.devScript.note}`);
+    for (const h of r.humanSteps) log.out(`  next: ${h}`);
+    log.out(r.summary);
+    if (!r.done) process.exitCode = 1;
+  });
+
+program
+  .command("add")
+  .argument("<var...>", "env var name(s), e.g. FOO_API_KEY")
+  .option("--url <url>", "page to open first, where the key is created")
+  .option("--force", "replace a stored value")
+  .description("store any other secret via the hidden dialog")
+  .action(async (vars: string[], opts: { url?: string; force?: boolean }) => {
+    printResult(await svc.addSecret(cliCtx(), vars, opts));
   });
 
 program
   .command("status")
+  .option("--all", "include services that aren't connected")
   .description("show connected services (no values)")
-  .action(async () => {
+  .action(async (opts: { all?: boolean }) => {
     const st = await svc.status(cliCtx());
     if (json()) return log.out(JSON.stringify(st, null, 2));
     log.out(`project ${st.project} (${st.root})`);
-    const width = Math.max(...st.services.map((s) => s.service.length));
-    for (const s of st.services) {
+    const shown = st.services.filter((s) => opts.all || s.state !== "not_connected");
+    if (!shown.length)
+      log.out("  Nothing connected yet. Run `keysmith scan` to see what this project needs.");
+    const width = Math.max(0, ...shown.map((s) => s.service.length));
+    for (const s of shown) {
       const bits: string[] = [s.state];
-      if (s.mode) bits.push(`${s.mode} mode`);
+      if (s.mode) bits.push(s.modeLabel ?? `${s.mode} mode`);
       if (s.account) bits.push(`account ${accountLabel(s.account, s.accountName)}`);
       if (s.expires)
         bits.push(`expires ${s.expires.slice(0, 10)}${s.expiringSoon ? " (soon!)" : ""}`);
@@ -160,6 +234,13 @@ program
       return log.out(JSON.stringify({ checks, recommendedDeny: RECOMMENDED_DENY }, null, 2));
     for (const c of checks) log.out(`${c.ok ? "✓" : "✗"} ${c.name}: ${c.detail}`);
     if (checks.some((c) => !c.ok)) process.exitCode = 1;
+  });
+
+program
+  .command("guard")
+  .description("Claude Code PreToolUse hook: block tool calls that would read secrets")
+  .action(async () => {
+    process.exitCode = await runGuard();
   });
 
 program

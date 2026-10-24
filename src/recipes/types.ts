@@ -18,6 +18,12 @@ export interface ConnectOptions {
   wait?: boolean;
   /** Replace an existing connection (Stripe recipes only), e.g. to switch accounts. */
   force?: boolean;
+  /** Provider project or account to use when there are several (Supabase, Neon, Cloudflare). */
+  project?: string;
+  /** Env var names to store (custom secrets). */
+  vars?: string[];
+  /** Page to open before asking for a custom secret. */
+  url?: string;
 }
 
 export interface RecipeContext {
@@ -42,6 +48,8 @@ export interface Status {
   tier?: Tier;
   account?: string;
   accountName?: string;
+  /** How to describe the mode to people, e.g. "sending access" instead of "test mode". */
+  modeLabel?: string;
   expires?: string | null;
   expiringSoon?: boolean;
   /** Env vars that are missing from the vault or .env. */
@@ -93,6 +101,14 @@ export interface Recipe {
   tiers: Tier[];
   /** Human steps that may be needed, in plain words. */
   humanSteps: string[];
+  /** Env vars that depend on the project (e.g. custom secrets). Defaults to `envVars`. */
+  envVarsFor?(ctx: RecipeContext): EnvVarSpec[];
+  /** What in a project shows it needs this service (used by scan). */
+  signals?: { packages: string[]; envPrefixes?: string[] };
+  /** Replaces "<mode> mode" in human output, e.g. "sending access". */
+  modeLabel?: string;
+  /** What rotate does for this service, in plain words. */
+  rotation?: string;
   detect(ctx: RecipeContext): Promise<Status>;
   connect(ctx: RecipeContext): Promise<ConnectResult>;
   verify(ctx: RecipeContext): Promise<VerifyResult>;

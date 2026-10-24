@@ -54,6 +54,8 @@ export const stripeWebhook: Recipe = {
   // Only a signing secret: nothing to proxy.
   hosts: [],
   tiers: ["cli"],
+  rotation:
+    "Not supported: the secret belongs to the Stripe CLI. After `stripe login` or switching accounts, run `keysmith connect stripe-webhook --force`.",
   humanSteps: [
     "None if the Stripe CLI is signed in to the same account as the Stripe key. Otherwise the user runs `stripe switch` or `stripe login`.",
   ],
