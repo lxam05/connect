@@ -115,7 +115,9 @@ Any path that creates, lists or deletes keys, or manages the account or organiza
 Each batch ends with tests, lint and typecheck passing. The next batch starts only after that.
 
 1. **Support levels and tracer bullet** (done in this change). `support` on every recipe, the catalog-only path, `unverified` in verify and setup results. Tracers: Groq (verified paste) and Upstash Redis (catalog only).
-2. **Backfill and site data.** Add `docsUrl` to the existing catalog entries. Generate `site/catalog.json` from `CATALOG` at build time and render a searchable list on the site.
+2. **Backfill and site data** (done). `docsUrl` is required on every catalog entry. `npm run build` writes `site/catalog.json`; the site's Integrations page searches and filters it, and every service gets a page. A test fails if the JSON is stale. Follow-ups found while checking docs:
+   - Clerk: the linked page confirms the env var names, not the `GET /v1/users` verify endpoint. Find the Backend API reference page for it.
+   - Anthropic: the current models doc shows `Authorization: Bearer` and a newer `anthropic-version`. The entry still sends `x-api-key` with `2023-06-01`; confirm both are still supported or update.
 3. **New dedicated recipes.** GitHub (via the `gh` CLI) and Railway (CLI or project token), each confirmed against official docs first.
 4. **Google Cloud.** Service-account JSON is a multi-line, file-shaped credential. It needs a new value kind in the vault and in `keysmith run` (e.g. write to a private temp file and set `GOOGLE_APPLICATION_CREDENTIALS`).
 5. **Category batches of about 20** (AI, email, auth, databases, payments, observability, storage). Each entry follows the checklist.

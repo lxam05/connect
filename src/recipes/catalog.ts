@@ -29,7 +29,7 @@ interface BaseEntry {
   /** Where the user creates the key. */
   keyPage: string;
   /** Official page confirming the env var names (and the verify endpoint, when there is one). */
-  docsUrl?: string;
+  docsUrl: string;
 }
 
 /** A key Keysmith checks against a documented, free, read-only endpoint. */
@@ -66,6 +66,7 @@ export const CATALOG: CatalogEntry[] = [
       { name: "OPENAI_API_KEY", secret: true, prefixes: ["sk-"], description: "OpenAI API key" },
     ],
     keyPage: "https://platform.openai.com/api-keys",
+    docsUrl: "https://developers.openai.com/api/reference/resources/models/methods/list",
     host: "api.openai.com",
     auth: { type: "bearer", secret: "OPENAI_API_KEY" },
     verifyPath: "/v1/models",
@@ -84,6 +85,7 @@ export const CATALOG: CatalogEntry[] = [
       },
     ],
     keyPage: "https://console.anthropic.com/settings/keys",
+    docsUrl: "https://platform.claude.com/docs/en/api/models/list",
     host: "api.anthropic.com",
     auth: {
       type: "header",
@@ -113,6 +115,7 @@ export const CATALOG: CatalogEntry[] = [
       },
     ],
     keyPage: "https://dashboard.clerk.com/last-active?path=api-keys",
+    docsUrl: "https://clerk.com/docs/guides/development/clerk-environment-variables",
     host: "api.clerk.com",
     auth: { type: "bearer", secret: "CLERK_SECRET_KEY" },
     verifyPath: "/v1/users?limit=1",
@@ -126,6 +129,8 @@ export const CATALOG: CatalogEntry[] = [
       { name: "SENDGRID_API_KEY", secret: true, prefixes: ["SG."], description: "SendGrid key" },
     ],
     keyPage: "https://app.sendgrid.com/settings/api_keys",
+    docsUrl:
+      "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
     host: "api.sendgrid.com",
     auth: { type: "bearer", secret: "SENDGRID_API_KEY" },
     verifyPath: "/v3/scopes",
@@ -150,6 +155,7 @@ export const CATALOG: CatalogEntry[] = [
       },
     ],
     keyPage: "https://console.twilio.com/",
+    docsUrl: "https://www.twilio.com/docs/usage/requests-to-twilio",
     host: "api.twilio.com",
     auth: { type: "basic", user: "TWILIO_ACCOUNT_SID", secret: "TWILIO_AUTH_TOKEN" },
     verifyPath: "/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}.json",
@@ -168,6 +174,7 @@ export const CATALOG: CatalogEntry[] = [
       },
     ],
     keyPage: "https://account.postmarkapp.com/servers",
+    docsUrl: "https://postmarkapp.com/developer/api/server-api",
     host: "api.postmarkapp.com",
     auth: { type: "header", name: "X-Postmark-Server-Token", secret: "POSTMARK_SERVER_TOKEN" },
     verifyPath: "/server",
@@ -192,6 +199,8 @@ export const CATALOG: CatalogEntry[] = [
       },
     ],
     keyPage: "https://dash.cloudflare.com/profile/api-tokens",
+    docsUrl:
+      "https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/",
     host: "api.cloudflare.com",
     auth: { type: "bearer", secret: "CLOUDFLARE_API_TOKEN" },
     verifyPath: "/client/v4/user/tokens/verify",

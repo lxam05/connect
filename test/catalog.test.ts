@@ -5,6 +5,7 @@ import { proxyRequest } from "../src/proxy/request.js";
 import { CATALOG, isVerified } from "../src/recipes/catalog.js";
 import { getRecipe, recipes } from "../src/recipes/registry.js";
 import { listServices } from "../src/service.js";
+import { siteCatalog } from "../src/site-catalog.js";
 import { describeSetupService } from "../src/setup.js";
 import { FakeCapture, type Route, fakeFetch, json, makeCtx } from "./fakes.js";
 
@@ -121,5 +122,21 @@ describe("catalog-only tracer (Upstash Redis)", () => {
       verified: { ok: true, message: "", unverified: true },
     });
     expect(line).toBe("· Upstash Redis: stored, not verified");
+  });
+});
+
+describe("site catalog", () => {
+  it("matches the recipes (run `npm run build` after changing a recipe)", () => {
+    const committed = JSON.parse(readFileSync(join(__dirname, "../site/catalog.json"), "utf8"));
+    expect(committed).toEqual(JSON.parse(JSON.stringify(siteCatalog())));
+  });
+
+  it("holds public metadata only", () => {
+    const text = JSON.stringify(siteCatalog());
+    for (const e of CATALOG) {
+      expect(e.docsUrl, e.id).toMatch(/^https:\/\//);
+      for (const v of e.envVars) expect(text).not.toMatch(new RegExp(`${v.name}=`));
+    }
+    expect(text).not.toMatch(/blockedPaths|keysmith:\/\//);
   });
 });

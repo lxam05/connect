@@ -575,33 +575,146 @@ function infoCard(id, name, logo, badge, desc, vars) {
 </a>`;
 }
 
-function integrationsPage() {
-  const svcCard = (id, name, logo, badge, desc, vars) => `
-<a class="svc" href="#/integrations/${id}">
-  <div class="svc-top"><span class="logo ${id}">${logo}</span><span class="badge live">${badge}</span></div>
-  <h3>${name}</h3><p>${desc}</p>
-  <div class="vars">${vars.map((v) => `<code>${v}</code>`).join("")}</div>
+/* Services come from catalog.json, which `npm run build` generates from the recipes. */
+let catalog = null;
+const catalogReady = fetch("catalog.json")
+  .then((r) => (r.ok ? r.json() : []))
+  .catch(() => [])
+  .then((data) => (catalog = data));
+
+const SUPPORT = {
+  dedicated: { label: "Automatic", hint: "Keysmith gets the key itself and verifies it." },
+  "verified-paste": {
+    label: "Paste + verify",
+    hint: "Paste once into a hidden dialog. Keysmith checks the key against a read-only endpoint.",
+  },
+  "catalog-only": {
+    label: "Paste, not verified",
+    hint: "Paste once into a hidden dialog. Keysmith stores and redacts the key but can't check it.",
+  },
+  custom: { label: "Any secret", hint: "Any env var Keysmith has no entry for." },
+};
+const BLURBS = {
+  stripe: "Payments in test mode. Sign in with the Stripe CLI and approve a pairing code.",
+  "stripe-webhook": "Reads the webhook signing secret from stripe listen.",
+  resend: "Transactional email. Paste one key and Keysmith creates a sending-only key from it.",
+  supabase: "Reads the project's keys through the Supabase CLI.",
+  neon: "Stores the database connection string from the Neon CLI.",
+  custom: "Any other secret, pasted into the hidden dialog and stored unverified.",
+};
+const blurb = (s) => BLURBS[s.id] ?? SUPPORT[s.support].hint;
+
+function svcCard(s) {
+  const logo = ["stripe", "resend"].includes(s.id) ? s.id : "plain";
+  const badge = s.support === "catalog-only" || s.support === "custom" ? "" : "live";
+  return `
+<a class="svc" href="#/integrations/${s.id}">
+  <div class="svc-top"><span class="logo ${logo}">${esc(s.displayName[0])}</span><span class="badge ${badge}">${SUPPORT[s.support].label}</span></div>
+  <h3>${esc(s.displayName)}</h3><p>${esc(blurb(s))}</p>
+  <div class="vars">${s.envVars
+    .slice(0, 3)
+    .map((v) => `<code>${v.name}</code>`)
+    .join("")}</div>
 </a>`;
+}
+
+function integrationsPage() {
   return `
 <section class="page-head"><div class="wrap">
   <h1 class="h2" style="font-size:clamp(36px,5vw,56px)">Integrations</h1>
-  <p class="lede">Services Keysmith can connect today. Each one is a single recipe file.</p>
+  <p class="lede">Services Keysmith can connect today, and how far each one is supported.</p>
 </div></section>
-<section style="padding:56px 0 120px"><div class="wrap">
-  <div class="cards">
-    ${svcCard("stripe", "Stripe", "S", "Available", "Payments in test mode. Sign in with the Stripe CLI and approve a pairing code.", ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY"])}
-    ${svcCard("resend", "Resend", "R", "Available", "Transactional email. Paste one key and Keysmith creates a sending-only key from it.", ["RESEND_API_KEY"])}
-    ${infoCard("supabase", "Supabase", "S", "No paste", "Reads the project's keys through the Supabase CLI. The service role key goes to the Keychain.", ["SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_URL"])}
-    ${infoCard("neon", "Neon", "N", "No paste", "Stores the database connection string from the Neon CLI.", ["DATABASE_URL"])}
+<section style="padding:40px 0 120px"><div class="wrap">
+  <div class="svc-controls">
+    <input type="search" id="svc-q" class="svc-search" placeholder="Search services or env vars" aria-label="Search services or env vars" />
+    <div class="chips" role="group" aria-label="Filter by support">
+      <button type="button" class="chip" data-support="" aria-pressed="true">All</button>
+      ${Object.entries(SUPPORT)
+        .map(
+          ([k, v]) =>
+            `<button type="button" class="chip" data-support="${k}" aria-pressed="false">${v.label}</button>`,
+        )
+        .join("")}
+    </div>
+  </div>
+  <p class="svc-count" id="svc-count" aria-live="polite">Loading services…</p>
+  <div class="cards" id="svc-grid"></div>
+  <div class="cards" style="margin-top:16px">
     ${infoCard("vercel", "Vercel", "▲", "Import", "Pulls a linked project's development env vars into the Keychain and deletes the temp file.", ["any env var"])}
-    ${infoCard("paste", "OpenAI, Anthropic, Clerk & more", "+", "One paste", "Guided paste with a key check for OpenAI, Anthropic, Clerk, SendGrid, Twilio, Postmark and Cloudflare.", ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"])}
     <a class="svc" href="#/docs/adding-a-provider">
       <div class="svc-top"><span class="logo soon">+</span><span class="badge">Open source</span></div>
-      <h3>Add a provider</h3><p>Write a recipe with detect, connect, verify and rotate, then register it.</p>
-      <div class="vars"><code>src/recipes/&lt;id&gt;.ts</code></div>
+      <h3>Add a provider</h3><p>Most providers are one catalog entry. See docs/provider-expansion.md.</p>
+      <div class="vars"><code>src/recipes/catalog.ts</code></div>
     </a>
   </div>
 </div></section>`;
+}
+
+async function initIntegrations() {
+  const grid = $("#svc-grid");
+  if (!grid) return;
+  await catalogReady;
+  if (!grid.isConnected) return;
+  const input = $("#svc-q");
+  const count = $("#svc-count");
+  let support = "";
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    const shown = catalog.filter(
+      (s) =>
+        (!support || s.support === support) &&
+        (!q ||
+          `${s.id} ${s.displayName} ${s.envVars.map((v) => v.name).join(" ")}`
+            .toLowerCase()
+            .includes(q)),
+    );
+    grid.innerHTML = shown.map(svcCard).join("");
+    count.textContent = catalog.length
+      ? `${shown.length} of ${catalog.length} services`
+      : "Couldn't load the service list.";
+  };
+  input.addEventListener("input", render);
+  $$(".chip").forEach((b) =>
+    b.addEventListener("click", () => {
+      support = b.dataset.support;
+      $$(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
+      render();
+    }),
+  );
+  render();
+}
+
+function genericServicePage(s) {
+  const link = (u) => `<a href="${esc(u)}" rel="noopener">${esc(new URL(u).host)}</a>`;
+  const rows = [
+    ["Support", SUPPORT[s.support].label],
+    ["Verified with", s.verifiedWith ? `<code>${esc(s.verifiedWith)}</code>` : "Not verified"],
+    ...(s.keyPage ? [["Key page", link(s.keyPage)]] : []),
+    ...(s.docsUrl ? [["Docs", link(s.docsUrl)]] : []),
+  ];
+  const body = `
+<p>${esc(blurb(s))}</p>
+${s.unverifiable ? `<p><strong>Why it isn't verified:</strong> ${esc(s.unverifiable)}</p>` : ""}
+<h2>You'll need to</h2>
+<ul>${s.humanSteps.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
+<h2>Env vars</h2>
+<ul>${s.envVars
+    .map(
+      (v) =>
+        `<li><code>${v.name}</code>: ${esc(v.description)}. ${v.secret ? "Stored in the Keychain; <code>.env</code> gets a placeholder." : "Public, written to <code>.env</code> as is."}</li>`,
+    )
+    .join("")}</ul>
+${s.rotation ? `<h2>Rotation</h2><p>${esc(s.rotation)}</p>` : ""}
+${codeBlock(`keysmith connect ${s.id}`)}`;
+  return `
+<section class="page-head"><div class="wrap">
+  <div class="crumbs"><a href="#/integrations">Integrations</a><span>/</span><span>${esc(s.displayName)}</span></div>
+  <div style="display:flex;align-items:center;gap:16px"><span class="logo plain" style="width:52px;height:52px;font-size:22px">${esc(s.displayName[0])}</span><h1 class="h2" style="font-size:clamp(34px,5vw,52px)">${esc(s.displayName)}</h1></div>
+</div></section>
+<div class="wrap detail">
+  <article class="prose">${body}</article>
+  <aside class="meta-box"><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></aside>
+</div>`;
 }
 
 function servicePage(id) {
@@ -631,7 +744,18 @@ function servicePage(id) {
       ],
     },
   }[id];
-  if (!meta) return notFound();
+  if (!meta) {
+    if (!catalog) {
+      // Route again once the list arrives.
+      catalogReady.then(() => {
+        $("#main").dataset.path = "";
+        route();
+      });
+      return `<section class="page-head"><div class="wrap"><p class="lede">Loading…</p></div></section>`;
+    }
+    const s = catalog.find((c) => c.id === id);
+    return s ? genericServicePage(s) : notFound();
+  }
   return `
 <section class="page-head"><div class="wrap">
   <div class="crumbs"><a href="#/integrations">Integrations</a><span>/</span><span>${meta.name}</span></div>
@@ -951,6 +1075,7 @@ function route() {
     document.title = parts.length && title ? `${title} | Keysmith` : "Keysmith";
     initDemo();
     initCliTerm();
+    initIntegrations();
     $("#docsel")?.addEventListener("change", (e) => (location.hash = `#/docs/${e.target.value}`));
   }
   closeMenu();
@@ -985,14 +1110,21 @@ document.addEventListener("click", (e) => {
 const PALETTE_ITEMS = [
   { title: "Home", href: "#/", kind: "Page" },
   { title: "Integrations", href: "#/integrations", kind: "Page" },
-  { title: "Stripe", href: "#/integrations/stripe", kind: "Integration" },
-  { title: "Resend", href: "#/integrations/resend", kind: "Integration" },
   { title: "Security", href: "#/security", kind: "Page" },
   { title: "Roadmap", href: "#/roadmap", kind: "Page" },
   ...DOC_PAGES.map((p) => ({ title: p.title, href: `#/docs/${p.slug}`, kind: "Docs" })),
   ...CLI.map((c) => ({ title: `keysmith ${c.cmd}`, href: "#/docs/cli", kind: "Command" })),
   ...MCP_TOOLS.map(([n]) => ({ title: n, href: "#/docs/mcp", kind: "MCP tool" })),
 ];
+catalogReady.then((list) =>
+  PALETTE_ITEMS.push(
+    ...list.map((s) => ({
+      title: s.displayName,
+      href: `#/integrations/${s.id}`,
+      kind: "Integration",
+    })),
+  ),
+);
 const pal = $(".palette");
 const palInput = $("input", pal);
 const palList = $("ul", pal);

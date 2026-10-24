@@ -1,0 +1,354 @@
+[
+  {
+    "id": "supabase",
+    "displayName": "Supabase",
+    "support": "dedicated",
+    "envVars": [
+      {
+        "name": "NEXT_PUBLIC_SUPABASE_URL",
+        "secret": false,
+        "description": "Project URL (public)"
+      },
+      {
+        "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "secret": false,
+        "description": "Anon key (public by design, row-level security applies)"
+      },
+      {
+        "name": "SUPABASE_SERVICE_ROLE_KEY",
+        "secret": true,
+        "description": "Service role key (bypasses row-level security)"
+      }
+    ],
+    "tiers": [
+      "cli"
+    ],
+    "humanSteps": [
+      "Sign in with `supabase login` (opens the browser), unless the Supabase CLI is already signed in.",
+      "Pick a project if the account has more than one and this folder isn't linked."
+    ],
+    "rotation": "Not automatic: roll the keys in the Supabase dashboard, then run `keysmith connect supabase --force`."
+  },
+  {
+    "id": "neon",
+    "displayName": "Neon",
+    "support": "dedicated",
+    "envVars": [
+      {
+        "name": "DATABASE_URL",
+        "secret": true,
+        "description": "Postgres connection string"
+      }
+    ],
+    "tiers": [
+      "cli"
+    ],
+    "humanSteps": [
+      "Sign in with `neonctl auth` (opens the browser), unless the Neon CLI is already signed in.",
+      "Pick a project if the account has more than one."
+    ],
+    "rotation": "Not automatic: reset the role's password in the Neon console, then run `keysmith connect neon --force`."
+  },
+  {
+    "id": "stripe",
+    "displayName": "Stripe",
+    "support": "dedicated",
+    "envVars": [
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "secret": true,
+        "description": "Test-mode secret (or restricted) key"
+      },
+      {
+        "name": "STRIPE_PUBLISHABLE_KEY",
+        "secret": false,
+        "description": "Test-mode publishable key (public)"
+      },
+      {
+        "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        "secret": false,
+        "description": "Publishable key exposed to Next.js client code"
+      }
+    ],
+    "tiers": [
+      "cli",
+      "capture"
+    ],
+    "humanSteps": [
+      "Approve a pairing code in the browser (Stripe CLI sign-in), unless the Stripe CLI is already signed in.",
+      "If the Stripe CLI isn't installed, the user must approve installing it: brew install stripe/stripe-cli/stripe"
+    ],
+    "rotation": "Only for keys from the Stripe CLI: picks up the newer key after `stripe login`. A key pasted from the dashboard must be rolled there, then reconnected with `keysmith connect stripe --tier capture --force`."
+  },
+  {
+    "id": "stripe-webhook",
+    "displayName": "Stripe webhooks",
+    "support": "dedicated",
+    "envVars": [
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "secret": true,
+        "description": "Signing secret for events forwarded by `stripe listen` (test mode)"
+      }
+    ],
+    "tiers": [
+      "cli"
+    ],
+    "humanSteps": [
+      "None if the Stripe CLI is signed in to the same account as the Stripe key. Otherwise the user runs `stripe switch` or `stripe login`."
+    ],
+    "rotation": "Not supported: the secret belongs to the Stripe CLI. After `stripe login` or switching accounts, run `keysmith connect stripe-webhook --force`."
+  },
+  {
+    "id": "resend",
+    "displayName": "Resend",
+    "support": "dedicated",
+    "envVars": [
+      {
+        "name": "RESEND_API_KEY",
+        "secret": true,
+        "description": "Sending-access API key used by the app"
+      }
+    ],
+    "tiers": [
+      "cli",
+      "capture",
+      "derived"
+    ],
+    "humanSteps": [
+      "Paste one Full access API key (from resend.com/api-keys) into a hidden macOS dialog, unless the Resend CLI is already logged in with one."
+    ],
+    "rotation": "Creates a new sending-only key with the stored full-access key, verifies it, swaps it in, then deletes the old one. Running apps must restart."
+  },
+  {
+    "id": "openai",
+    "displayName": "OpenAI",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "OPENAI_API_KEY",
+        "secret": true,
+        "description": "OpenAI API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy OPENAI_API_KEY from https://platform.openai.com/api-keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://platform.openai.com/api-keys, then run `keysmith connect openai` again after removing the old one.",
+    "keyPage": "https://platform.openai.com/api-keys",
+    "docsUrl": "https://developers.openai.com/api/reference/resources/models/methods/list",
+    "verifiedWith": "GET api.openai.com/v1/models"
+  },
+  {
+    "id": "anthropic",
+    "displayName": "Anthropic",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "ANTHROPIC_API_KEY",
+        "secret": true,
+        "description": "Anthropic API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy ANTHROPIC_API_KEY from https://console.anthropic.com/settings/keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.anthropic.com/settings/keys, then run `keysmith connect anthropic` again after removing the old one.",
+    "keyPage": "https://console.anthropic.com/settings/keys",
+    "docsUrl": "https://platform.claude.com/docs/en/api/models/list",
+    "verifiedWith": "GET api.anthropic.com/v1/models"
+  },
+  {
+    "id": "clerk",
+    "displayName": "Clerk",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "CLERK_SECRET_KEY",
+        "secret": true,
+        "description": "Clerk secret key"
+      },
+      {
+        "name": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "secret": false,
+        "description": "Clerk publishable key (public)"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy CLERK_SECRET_KEY and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY from https://dashboard.clerk.com/last-active?path=api-keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://dashboard.clerk.com/last-active?path=api-keys, then run `keysmith connect clerk` again after removing the old one.",
+    "keyPage": "https://dashboard.clerk.com/last-active?path=api-keys",
+    "docsUrl": "https://clerk.com/docs/guides/development/clerk-environment-variables",
+    "verifiedWith": "GET api.clerk.com/v1/users?limit=1"
+  },
+  {
+    "id": "sendgrid",
+    "displayName": "SendGrid",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "SENDGRID_API_KEY",
+        "secret": true,
+        "description": "SendGrid key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy SENDGRID_API_KEY from https://app.sendgrid.com/settings/api_keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://app.sendgrid.com/settings/api_keys, then run `keysmith connect sendgrid` again after removing the old one.",
+    "keyPage": "https://app.sendgrid.com/settings/api_keys",
+    "docsUrl": "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
+    "verifiedWith": "GET api.sendgrid.com/v3/scopes"
+  },
+  {
+    "id": "twilio",
+    "displayName": "Twilio",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "TWILIO_ACCOUNT_SID",
+        "secret": false,
+        "description": "Twilio Account SID (identifier)"
+      },
+      {
+        "name": "TWILIO_AUTH_TOKEN",
+        "secret": true,
+        "description": "Twilio auth token"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN from https://console.twilio.com/ into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.twilio.com/, then run `keysmith connect twilio` again after removing the old one.",
+    "keyPage": "https://console.twilio.com/",
+    "docsUrl": "https://www.twilio.com/docs/usage/requests-to-twilio",
+    "verifiedWith": "GET api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}.json"
+  },
+  {
+    "id": "postmark",
+    "displayName": "Postmark",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "POSTMARK_SERVER_TOKEN",
+        "secret": true,
+        "description": "Postmark server API token"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy POSTMARK_SERVER_TOKEN from https://account.postmarkapp.com/servers into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://account.postmarkapp.com/servers, then run `keysmith connect postmark` again after removing the old one.",
+    "keyPage": "https://account.postmarkapp.com/servers",
+    "docsUrl": "https://postmarkapp.com/developer/api/server-api",
+    "verifiedWith": "GET api.postmarkapp.com/server"
+  },
+  {
+    "id": "cloudflare",
+    "displayName": "Cloudflare",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "CLOUDFLARE_API_TOKEN",
+        "secret": true,
+        "description": "Cloudflare API token"
+      },
+      {
+        "name": "CLOUDFLARE_ACCOUNT_ID",
+        "secret": false,
+        "description": "Cloudflare account id (filled in from the token)"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy CLOUDFLARE_API_TOKEN from https://dash.cloudflare.com/profile/api-tokens into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://dash.cloudflare.com/profile/api-tokens, then run `keysmith connect cloudflare` again after removing the old one.",
+    "keyPage": "https://dash.cloudflare.com/profile/api-tokens",
+    "docsUrl": "https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/",
+    "verifiedWith": "GET api.cloudflare.com/client/v4/user/tokens/verify"
+  },
+  {
+    "id": "groq",
+    "displayName": "Groq",
+    "support": "verified-paste",
+    "envVars": [
+      {
+        "name": "GROQ_API_KEY",
+        "secret": true,
+        "description": "Groq API key"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy GROQ_API_KEY from https://console.groq.com/keys into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.groq.com/keys, then run `keysmith connect groq` again after removing the old one.",
+    "keyPage": "https://console.groq.com/keys",
+    "docsUrl": "https://console.groq.com/docs/models",
+    "verifiedWith": "GET api.groq.com/openai/v1/models"
+  },
+  {
+    "id": "upstash-redis",
+    "displayName": "Upstash Redis",
+    "support": "catalog-only",
+    "envVars": [
+      {
+        "name": "UPSTASH_REDIS_REST_URL",
+        "secret": false,
+        "description": "REST URL (identifier)"
+      },
+      {
+        "name": "UPSTASH_REDIS_REST_TOKEN",
+        "secret": true,
+        "description": "REST token"
+      }
+    ],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN from https://console.upstash.com/ into a hidden macOS dialog."
+    ],
+    "rotation": "Not automatic: roll the key at https://console.upstash.com/, then run `keysmith connect upstash-redis` again after removing the old one.",
+    "keyPage": "https://console.upstash.com/",
+    "docsUrl": "https://upstash.com/docs/redis/sdks/ts/getstarted",
+    "unverifiable": "Each database has its own REST host, which Keysmith can't verify against yet."
+  },
+  {
+    "id": "custom",
+    "displayName": "Other secrets",
+    "support": "custom",
+    "envVars": [],
+    "tiers": [
+      "capture"
+    ],
+    "humanSteps": [
+      "Paste each value into a hidden macOS dialog."
+    ],
+    "rotation": "Not supported: replace the value with `keysmith add <VAR> --force`."
+  }
+]
