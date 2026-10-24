@@ -118,6 +118,8 @@ export interface Recipe {
   envVarsFor?(ctx: RecipeContext): EnvVarSpec[];
   /** What in a project shows it needs this service (used by scan). */
   signals?: { packages: string[]; envPrefixes?: string[] };
+  /** Whether a value is a test-mode key. Defaults to `inferMode` (a `live_` marker). */
+  modeFor?(value: string): Mode;
   /** Replaces "<mode> mode" in human output, e.g. "sending access". */
   modeLabel?: string;
   /** What rotate does for this service, in plain words. */

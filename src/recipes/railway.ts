@@ -66,6 +66,8 @@ export const railway: Recipe = {
     },
   ],
   hosts: [],
+  // No test mode: every token is live, so the proxy refuses writes.
+  modeFor: () => "live",
   tiers: ["capture"],
   humanSteps: [
     `Create a project token in your Railway project's Settings → Tokens (${DASHBOARD}) and paste it into a hidden macOS dialog.`,

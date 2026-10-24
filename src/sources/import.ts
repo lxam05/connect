@@ -57,7 +57,15 @@ export function importSecrets(
     if (owner === custom) ctx.options = { ...saved, vars: [name] };
     try {
       persist(ctx, owner, [
-        { envVar: name, value, meta: { mode: inferMode(value), tier: "imported", expires: null } },
+        {
+          envVar: name,
+          value,
+          meta: {
+            mode: owner.modeFor?.(value) ?? inferMode(value),
+            tier: "imported",
+            expires: null,
+          },
+        },
       ]);
     } finally {
       ctx.options = saved;

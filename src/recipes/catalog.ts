@@ -37,6 +37,11 @@ interface BaseEntry {
   keyPage: string;
   /** Official page confirming the env var names (and the verify endpoint, when there is one). */
   docsUrl: string;
+  /**
+   * Documented prefixes of test-mode keys. Without them every key is live, so the proxy
+   * refuses writes that could spend money or change real data.
+   */
+  testPrefixes?: string[];
 }
 
 /** A key Keysmith checks against a documented, free, read-only endpoint. */
@@ -125,6 +130,7 @@ export const CATALOG: CatalogEntry[] = [
     keyPage: "https://dashboard.clerk.com/last-active?path=api-keys",
     docsUrl: "https://github.com/clerk/openapi-specs/blob/main/bapi/2026-08-20.yml",
     host: "api.clerk.com",
+    testPrefixes: ["sk_test_"],
     auth: { type: "bearer", secret: "CLERK_SECRET_KEY" },
     verifyPath: "/v1/users?limit=1",
     // Endpoints that manage the instance or mint, return or rotate secrets and tokens.

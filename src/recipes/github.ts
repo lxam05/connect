@@ -105,6 +105,8 @@ export const github: Recipe = {
   verifiedWith: `GET ${HOST}/user`,
   envVars: [{ name: GITHUB_TOKEN, secret: true, description: "GitHub token" }],
   hosts: [HOST],
+  // No test mode: every token is live, so the proxy refuses writes.
+  modeFor: () => "live",
   tiers: ["cli", "capture"],
   humanSteps: [
     "Sign in with `gh auth login`, unless the GitHub CLI is already signed in.",

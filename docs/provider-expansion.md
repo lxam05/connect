@@ -41,14 +41,15 @@ A catalog-only entry still earns its place: `scan` detects the provider, the dia
 
 Shared fields (`src/recipes/catalog.ts`):
 
-| Field         | Required | Notes                                                                      |
-| ------------- | -------- | -------------------------------------------------------------------------- |
-| `id`          | yes      | Lowercase, stable, used in `keysmith connect <id>`                         |
-| `displayName` | yes      |                                                                            |
-| `packages`    | yes      | npm packages that signal the provider (may be empty if none are official)  |
-| `envVars`     | yes      | Names the provider's own docs and SDKs use. `secret`, `prefixes`/`pattern` |
-| `keyPage`     | yes      | Official page where the user creates the key                               |
-| `docsUrl`     | yes      | Official doc page that confirms the env var names and the verify endpoint  |
+| Field          | Required | Notes                                                                                                               |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `id`           | yes      | Lowercase, stable, used in `keysmith connect <id>`                                                                  |
+| `displayName`  | yes      |                                                                                                                     |
+| `packages`     | yes      | npm packages that signal the provider (may be empty if none are official)                                           |
+| `envVars`      | yes      | Names the provider's own docs and SDKs use. `secret`, `prefixes`/`pattern`                                          |
+| `keyPage`      | yes      | Official page where the user creates the key                                                                        |
+| `docsUrl`      | yes      | Official doc page that confirms the env var names and the verify endpoint                                           |
+| `testPrefixes` | no       | Documented prefixes of test-mode keys, e.g. `sk_test_`. Without them every key is live and the proxy refuses writes |
 
 Verified entries add `host`, `auth`, `verifyPath`, `blockedPaths`. Catalog-only entries add `unverifiable`: one sentence saying why Keysmith can't check the key.
 
@@ -125,7 +126,7 @@ Each batch ends with tests, lint and typecheck passing. The next batch starts on
 4. **Google Cloud.** Service-account JSON is a multi-line, file-shaped credential. It needs a new value kind in the vault and in `keysmith run` (e.g. write to a private temp file and set `GOOGLE_APPLICATION_CREDENTIALS`).
 5. **Category batches of about 20** (AI, email, auth, databases, payments, observability, storage). Each entry follows the checklist.
    - 5a, AI (done): Mistral, DeepSeek, Cohere, Cerebras, Replicate, ElevenLabs, Google Gemini, Pinecone, Deepgram and AssemblyAI are verified paste; xAI and Together AI are catalog only, since their docs list no read-only check. Header auth gained `prefix` for Deepgram's `Authorization: Token <key>`. Deferred until their docs confirm the missing fact: Hugging Face (env var name), OpenRouter (page for creating a regular key), Fireworks (env var name; every URL needs an account id).
-   - Known gap: modes come from the key's text (`live_` means live), so most AI keys count as test mode and the proxy allows writes that spend credits. Decide whether providers without a test mode should be live by default.
+   - Live by default (done): a catalog key is test mode only if it starts with a documented `testPrefixes` value (Clerk's `sk_test_`). Every other key is live, so `request()` can read but not write, which stops agents spending credits or changing real data. GitHub and Railway are always live. Resend keeps its sending-only key in test mode on purpose, so agents can send email. Keys stored before this change keep their old mode label in `status`, but the proxy decides the mode when it sends each request, so it applies to them too.
 
 ## Open questions
 

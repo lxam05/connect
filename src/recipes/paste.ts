@@ -9,11 +9,11 @@ import {
   describeHttpError,
   detectFromState,
   failed,
-  inferMode,
   persist,
   refFor,
   repairEnv,
 } from "./common.js";
+import type { Mode } from "../vault/index.js";
 import type { ConnectResult, Recipe, RecipeContext, VerifyResult } from "./types.js";
 
 type Values = Record<string, string>;
@@ -95,6 +95,8 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
   const derived = entry.envVars.filter((v) => v.derived);
   const verified = isVerified(entry) ? entry : undefined;
   const unverifiable = isVerified(entry) ? "" : entry.unverifiable;
+  const modeFor = (value: string): Mode =>
+    entry.testPrefixes?.some((p) => value.startsWith(p)) ? "test" : "live";
   /** The value that decides the mode: the auth secret, or the first secret var. */
   const primary = verified?.auth.secret ?? plain.find((v) => v.secret)!.name;
 
@@ -126,6 +128,7 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
     blockedPaths: verified?.blockedPaths,
     signals: { packages: entry.packages },
     modeLabel: verified ? undefined : "stored, not verified",
+    modeFor,
     rotation: `Not automatic: roll the key at ${entry.keyPage}, then run \`keysmith connect ${entry.id}\` again after removing the old one.`,
 
     async detect(ctx) {
@@ -178,7 +181,7 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
           );
       }
 
-      const mode = inferMode(values[primary]!);
+      const mode = modeFor(values[primary]!);
       const tier = adopted.includes(primary) ? "imported" : "capture";
       let account: { id: string; name?: string } | undefined;
       const derivedValues: Values = {};
@@ -229,7 +232,7 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
           ok: false,
           message: `Not connected (missing ${missing.join(", ")}).`,
         };
-      const mode = inferMode(values[primary]!);
+      const mode = modeFor(values[primary]!);
       if (!verified)
         return {
           service: this.id,
@@ -258,7 +261,7 @@ export function pasteRecipe(entry: CatalogEntry): Recipe {
       const values = stored(ctx, this);
       const secret = values[verified.auth.secret];
       if (!secret) return null;
-      return { headers: authHeaders(verified, values), secrets: [secret], mode: inferMode(secret) };
+      return { headers: authHeaders(verified, values), secrets: [secret], mode: modeFor(secret) };
     },
   };
 }

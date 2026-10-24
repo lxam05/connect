@@ -30,7 +30,7 @@ describe("catalog (guided paste) recipes", () => {
     const capture = new FakeCapture([OPENAI]);
     const { ctx, root, keychain } = makeCtx({ capture, fetch: fakeFetch([openaiApi]).fetch });
     const r = await getRecipe("openai").connect(ctx);
-    expect(r).toMatchObject({ outcome: "connected", mode: "test", tier: "capture" });
+    expect(r).toMatchObject({ outcome: "connected", mode: "live", tier: "capture" });
     expect(capture.requests[0]!.url).toBe("https://platform.openai.com/api-keys");
     expect(keychain.items.get("demo/openai/OPENAI_API_KEY")).toBe(OPENAI);
     const env = readFileSync(join(root, ".env"), "utf8");

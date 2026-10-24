@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { proxyRequest } from "../src/proxy/request.js";
 import { CATALOG, type VerifiedEntry, isVerified } from "../src/recipes/catalog.js";
 import { getRecipe } from "../src/recipes/registry.js";
+import { importSecrets } from "../src/sources/import.js";
 import { FakeCapture, type Route, fakeFetch, json, makeCtx } from "./fakes.js";
 
 const VERIFIED = [
@@ -108,5 +109,62 @@ describe("AI providers (catalog only)", () => {
     expect((await getRecipe(id).connect(ctx)).outcome).toBe("connected");
     expect(await getRecipe(id).verify(ctx)).toMatchObject({ ok: true, unverified: true });
     expect(log).toHaveLength(0);
+  });
+});
+
+describe("live mode for providers without test keys", () => {
+  it("refuses writes through the proxy for providers with no test mode", async () => {
+    const e = entry("mistral") as VerifiedEntry;
+    const { ctx } = makeCtx({
+      capture: new FakeCapture([keyFor("mistral")]),
+      fetch: fakeFetch([providerApi(e)]).fetch,
+    });
+    expect((await getRecipe("mistral").connect(ctx)).mode).toBe("live");
+    expect((await getRecipe("mistral").detect(ctx)).mode).toBe("live");
+    await expect(
+      proxyRequest(ctx, "mistral", "POST", "/v1/chat/completions", { messages: [] }),
+    ).rejects.toThrow(/live-mode/);
+    expect((await proxyRequest(ctx, "mistral", "GET", "/v1/models")).status).toBe(200);
+  });
+
+  it("allows writes only for keys with a documented test prefix", async () => {
+    const clerkApi: Route = ({ url }) => (url.host === "api.clerk.com" ? json({}) : undefined);
+    const pk = "pk_test_FakeClerkPublishableABCDEF";
+    {
+      const { ctx } = makeCtx({
+        capture: new FakeCapture(["sk_test_FakeClerkSecretABCDEFGHIJKLMNOP", pk]),
+        fetch: fakeFetch([clerkApi]).fetch,
+      });
+      expect((await getRecipe("clerk").connect(ctx)).mode).toBe("test");
+      expect((await proxyRequest(ctx, "clerk", "POST", "/v1/users", {})).status).toBe(200);
+    }
+    const { ctx } = makeCtx({
+      // Built at runtime so secret scanners don't flag a fake live key.
+      capture: new FakeCapture([["sk", "live", "FakeClerkSecretABCDEFGHIJKLMNOP"].join("_"), pk]),
+      fetch: fakeFetch([clerkApi]).fetch,
+    });
+    expect((await getRecipe("clerk").connect(ctx)).mode).toBe("live");
+    await expect(proxyRequest(ctx, "clerk", "POST", "/v1/users", {})).rejects.toThrow(/live-mode/);
+  });
+
+  it("treats every no-test-mode recipe's values as live, whatever they look like", () => {
+    for (const id of ["openai", "anthropic", "groq", "mistral", "xai", "github", "railway"])
+      expect(getRecipe(id).modeFor?.("sk_test_looks_like_a_test_key"), id).toBe("live");
+  });
+});
+
+describe("imported keys", () => {
+  it("store the owning recipe's mode, not a guess from the value", () => {
+    const { ctx, vault } = makeCtx({});
+    importSecrets(
+      ctx,
+      new Map([
+        ["OPENAI_API_KEY", "sk-proj-FakeImportedKeyABCDEFGHIJKLMN"],
+        ["GITHUB_TOKEN", "github_pat_FakeImportedABCDEFGHIJKLMN"],
+      ]),
+      "dotenv",
+    );
+    expect(vault.meta("keysmith://demo/openai/OPENAI_API_KEY")?.mode).toBe("live");
+    expect(vault.meta("keysmith://demo/github/GITHUB_TOKEN")?.mode).toBe("live");
   });
 });
